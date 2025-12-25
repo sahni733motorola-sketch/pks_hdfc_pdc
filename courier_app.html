@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courier Manager (Secured)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #eef2f5; padding: 15px; margin: 0; }
+        
+        /* Layout Wrapper */
+        .main-container { max-width: 1200px; margin: 0 auto; display: flex; gap: 20px; align-items: flex-start; }
+        .form-panel { flex: 0 0 320px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 20px; }
+        .list-panel { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); min-height: 80vh; }
+
+        /* Grand Total Banner */
+        .total-banner { background: linear-gradient(135deg, #28a745, #218838); color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .total-banner span { font-size: 14px; opacity: 0.9; }
+        .total-banner strong { font-size: 24px; }
+
+        h2 { margin-top: 0; color: #2c3e50; font-size: 18px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 15px; }
+
+        /* Form Styling */
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+        input:focus, select:focus { border-color: #007bff; outline: none; }
+        .row-inputs { display: flex; gap: 10px; }
+        
+        button.action-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 600; margin-top: 5px; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; color: white; margin-top: 0; flex: 1; }
+        .btn-secondary:hover { background-color: #5a6268; }
+
+        /* List Styling */
+        .date-group { margin-bottom: 10px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+        .date-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #f8f9fa; cursor: pointer; user-select: none; font-size: 14px; border-left: 4px solid #007bff; }
+        .date-header:hover { background: #eef6fc; }
+        .date-title { font-weight: 700; color: #333; }
+        .date-summary { font-size: 12px; color: #666; display: flex; gap: 10px; align-items: center; }
+        .entry-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .date-content { display: none; }
+        .entry-table th { background: #f1f1f1; padding: 8px; text-align: left; color: #555; font-weight: 600; border-bottom: 1px solid #ddd; }
+        .entry-table td { padding: 8px; border-bottom: 1px solid #eee; color: #333; vertical-align: middle; }
+        .badge { padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .badge-cleared { background: #d4edda; color: #155724; }
+        .badge-uncleared { background: #f8d7da; color: #721c24; }
+        .delete-btn { background: #ff4d4d; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; }
+        .delete-btn:hover { background: #cc0000; }
+        .toggle-icon { transition: transform 0.2s; font-size: 10px; }
+        .rotate { transform: rotate(180deg); }
+
+        /* --- LOGIN OVERLAY STYLING --- */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #2c3e50; z-index: 9999;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+        }
+        #loginBox {
+            background: white; padding: 30px; border-radius: 8px; text-align: center; width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        /* --- POPUP MODAL STYLING --- */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: flex-start;
+            padding-top: 80px;
+        }
+        .modal-content {
+            background: white; width: 450px; padding: 25px; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+        }
+        .modal-header { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #333; display: flex; justify-content: space-between; }
+        .mode-badge { font-size: 12px; background: #ffc107; padding: 2px 6px; border-radius: 4px; color: black; display: none; }
+        .modal-close { cursor: pointer; font-size: 20px; color: #999; }
+        
+        .popup-row { display: flex; gap: 10px; margin-bottom: 15px; }
+        .popup-field { flex: 1; }
+        .popup-field label { font-size: 13px; margin-bottom: 5px; }
+        .popup-field input { padding: 10px; font-size: 15px; border: 2px solid #eee; }
+        .popup-field input:focus { border-color: #007bff; }
+        
+        /* Helper to hide Date in Bulk Mode */
+        .bulk-hidden { display: none !important; }
+
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .form-panel, .list-panel { width: 100%; flex: none; }
+            .modal-content { width: 90%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginOverlay">
+    <div id="loginBox">
+        <h2 style="border:none; margin-bottom:15px;">Secured Access</h2>
+        <input type="password" id="appPass" placeholder="Enter Password" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:4px; font-size:16px;">
+        <button onclick="checkPass()" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:4px; font-size:16px; cursor:pointer;">Unlock</button>
+    </div>
+</div>
+
+<div class="main-container">
+    
+    <div class="form-panel">
+        <h2>Actions</h2>
+        
+        <button id="toggleFormBtn" class="action-btn btn-secondary" onclick="toggleManualForm()" style="margin-bottom:15px; background-color:#5a6268;">Show Manual Entry Form</button>
+
+        <div id="manualFormContainer" style="display:none;">
+            <div class="input-group">
+                <label>Date</label>
+                <input type="date" id="dateInput">
+            </div>
+
+            <div class="input-group">
+                <label>Courier Type</label>
+                <select id="typeInput" onchange="updatePrice('manual')">
+                    <option value="">Select Type</option>
+                    <option value="Professional">Professional (30)</option>
+                    <option value="Skyking/Mahavir/Madhur/Pushpak">Skyking/Mahavir... (16)</option>
+                    <option value="Tirupati">Tirupati (20)</option>
+                    <option value="Trackon/DTDC">Trackon/DTDC (50)</option>
+                    <option value="Air Parcel">Air Parcel (Manual)</option>
+                    <option value="Parcel">Parcel (Manual)</option>
+                    <option value="India Post">India Post (Manual)</option>
+                </select>
+            </div>
+
+            <div class="row-inputs">
+                <div class="input-group" style="flex:1">
+                    <label>Qty</label>
+                    <input type="number" id="qtyInput" value="1" min="1" oninput="calculateTotal('manual')">
+                </div>
+                <div class="input-group" style="flex:1">
+                    <label>Price</label>
+                    <input type="number" id="priceInput" readonly oninput="calculateTotal('manual')">
+                </div>
+            </div>
+
+            <div class="row-inputs">
+                <div class="input-group" style="flex:1">
+                    <label>Amount</label>
+                    <input type="number" id="amountInput" readonly>
+                </div>
+                <div class="input-group" style="flex:1">
+                    <label>Status</label>
+                    <select id="statusInput">
+                        <option value="Cleared">Cleared</option>
+                        <option value="Uncleared" selected>Uncleared</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Remark</label>
+                <input type="text" id="remarkInput" placeholder="Optional">
+            </div>
+
+            <button class="action-btn btn-primary" onclick="addEntry()">Add to List</button>
+        </div>
+        
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="action-btn btn-secondary" onclick="backupData()">Backup</button>
+            <button class="action-btn btn-secondary" onclick="document.getElementById('restoreInput').click()">Restore</button>
+        </div>
+        <input type="file" id="restoreInput" style="display:none" onchange="restoreData(this)" accept=".json">
+        
+        <div style="margin-top:15px; font-size:12px; color:#777; line-height:1.6;">
+            <strong>Shortcuts:</strong><br>
+            Alt + N : New Entry<br>
+            Remark me Shift+Enter: Save & Start Bulk Mode<br>
+            Esc : Close Popup
+        </div>
+    </div>
+
+    <div class="list-panel">
+        <div class="total-banner">
+            <span>Total Outstanding Amount</span>
+            <strong id="grandTotalDisplay">₹0</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 style="border:none; margin:0;">Daily Breakdown</h2>
+        </div>
+        <div id="listContainer"></div>
+    </div>
+
+</div>
+
+<div id="entryModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>New Entry <span id="bulkBadge" class="mode-badge">BULK MODE</span></span>
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+        </div>
+
+        <div class="popup-row" id="row_date">
+            <div class="popup-field">
+                <label>Date</label>
+                <input type="date" id="p_dateInput">
+            </div>
+        </div>
+
+        <div class="popup-row">
+            <div class="popup-field">
+                <label>Courier Type</label>
+                <input list="courierList" id="p_type" placeholder="Type to search or add new" autocomplete="off">
+                <datalist id="courierList">
+                    </datalist>
+            </div>
+        </div>
+
+        <div class="popup-row">
+            <div class="popup-field" style="flex:1;">
+                <label>Qty</label>
+                <input type="number" id="p_qty" value="" placeholder="1">
+            </div>
+            <div class="popup-field" style="flex:1;">
+                <label>Price</label>
+                <input type="number" id="p_price" placeholder="Rate">
+            </div>
+        </div>
+
+        <div class="popup-row">
+            <div class="popup-field">
+                <label>Remark</label>
+                <input type="text" id="p_remark" placeholder="Remark">
+            </div>
+        </div>
+        
+        <div style="text-align:right; font-size:11px; color:#999; margin-top:10px;">
+            Enter to Next. <b>Shift+Enter on Remark</b> for Bulk Mode.
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- LOGIN SYSTEM ---
+    const correctPass = "55165032";
+    let isLocked = true;
+
+    function checkPass() {
+        const p = document.getElementById('appPass').value;
+        if(p === correctPass) {
+            document.getElementById('loginOverlay').style.display = "none";
+            isLocked = false;
+        } else {
+            alert("Incorrect Password");
+            document.getElementById('appPass').value = "";
+            document.getElementById('appPass').focus();
+        }
+    }
+
+    document.getElementById('appPass').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') checkPass();
+    });
+    
+    // Focus password box on load
+    window.onload = function() {
+        document.getElementById('appPass').focus();
+        init();
+    };
+
+    // --- CONFIG & DATA ---
+    const rates = {
+        "Professional": 30, "Skyking/Mahavir/Madhur/Pushpak": 16, "Tirupati": 20,
+        "Trackon/DTDC": 50, "Air Parcel": "manual", "Parcel": "manual", "India Post": "manual"
+    };
+
+    let entries = JSON.parse(localStorage.getItem('courierData')) || [];
+    let isBulkMode = false;
+
+    // --- INITIALIZATION ---
+    function init() {
+        setYesterday();
+        populateDatalist();
+        renderList();
+    }
+
+    function populateDatalist() {
+        const dl = document.getElementById('courierList');
+        dl.innerHTML = '';
+        Object.keys(rates).forEach(key => {
+            let opt = document.createElement('option');
+            opt.value = key;
+            dl.appendChild(opt);
+        });
+    }
+    
+    // --- TOGGLE FORM VISIBILITY ---
+    function toggleManualForm() {
+        const container = document.getElementById('manualFormContainer');
+        const btn = document.getElementById('toggleFormBtn');
+        if (container.style.display === "none") {
+            container.style.display = "block";
+            btn.textContent = "Hide Manual Entry Form";
+        } else {
+            container.style.display = "none";
+            btn.textContent = "Show Manual Entry Form";
+        }
+    }
+
+    // --- SIDEBAR LOGIC ---
+    function setYesterday() {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        document.getElementById('dateInput').valueAsDate = d;
+    }
+
+    function updatePrice(source) {
+        let type, priceInput;
+        if(source === 'manual') {
+            type = document.getElementById('typeInput').value;
+            priceInput = document.getElementById('priceInput');
+        } 
+        
+        let rate = rates[type];
+        if (rate === "manual") {
+            priceInput.value = ""; priceInput.readOnly = false; priceInput.focus();
+        } else if (rate) {
+            priceInput.value = rate; priceInput.readOnly = true;
+        } else {
+            priceInput.value = ""; priceInput.readOnly = true;
+        }
+        calculateTotal(source);
+    }
+
+    function calculateTotal(source) {
+        let qty, price, amtInput;
+        if(source === 'manual') {
+            qty = parseFloat(document.getElementById('qtyInput').value) || 0;
+            price = parseFloat(document.getElementById('priceInput').value) || 0;
+            amtInput = document.getElementById('amountInput');
+        }
+        amtInput.value = qty * price;
+    }
+
+    function addEntry() {
+        // Logic for Sidebar Button
+        const date = document.getElementById('dateInput').value;
+        const type = document.getElementById('typeInput').value;
+        const qty = document.getElementById('qtyInput').value;
+        const price = document.getElementById('priceInput').value;
+        const amount = document.getElementById('amountInput').value;
+        const status = document.getElementById('statusInput').value;
+        const remark = document.getElementById('remarkInput').value;
+
+        if (!date || !type || amount === "") { alert("Please fill details correctly."); return; }
+        saveToData(date, type, qty, price, amount, status, remark);
+        
+        document.getElementById('qtyInput').value = 1;
+        document.getElementById('remarkInput').value = "";
+        document.getElementById('priceInput').value = "";
+        document.getElementById('amountInput').value = "";
+        document.getElementById('typeInput').value = "";
+        setYesterday();
+    }
+
+    // --- CORE DATA FUNCTIONS ---
+    function saveToData(date, type, qty, price, amount, status, remark) {
+        entries.push({ id: Date.now(), date, type, qty, price, amount, status, remark });
+        saveAndRender();
+    }
+
+    function deleteDateGroup(date, event) {
+        event.stopPropagation(); // Stop toggle
+        if(confirm("Delete ALL entries for this date?")) {
+            entries = entries.filter(e => e.date !== date);
+            saveAndRender();
+        }
+    }
+
+    function renderList() {
+        const container = document.getElementById('listContainer');
+        const grandTotalDisplay = document.getElementById('grandTotalDisplay');
+        container.innerHTML = "";
+        
+        const totalAmount = entries.reduce((sum, entry) => sum + parseFloat(entry.amount || 0), 0);
+        grandTotalDisplay.textContent = "₹" + totalAmount;
+
+        if (entries.length === 0) { container.innerHTML = "<p style='text-align:center; color:#999;'>No data found.</p>"; return; }
+
+        const groups = {};
+        entries.forEach(e => { if (!groups[e.date]) groups[e.date] = []; groups[e.date].push(e); });
+        
+        Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
+            const dayEntries = groups[date];
+            const dayTotal = dayEntries.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+            const dObj = new Date(date);
+            const formattedDate = isNaN(dObj) ? date : dObj.toLocaleDateString('en-IN', { weekday:'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'date-group';
+            groupDiv.innerHTML = `
+                <div class="date-header" onclick="toggleGroup(this)">
+                    <div class="date-title">${formattedDate}</div>
+                    <div class="date-summary">
+                        <button class="delete-btn" style="margin-right:15px; padding:4px 8px;" onclick="deleteDateGroup('${date}', event)">Delete All</button>
+                        <span>Items: <b>${dayEntries.length}</b></span>
+                        <span>Total: <b>₹${dayTotal}</b></span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                </div>
+                <div class="date-content">
+                    <table class="entry-table">
+                        <thead><tr><th>Type</th><th>Qty</th><th>Price</th><th>Amt</th><th>Sts</th><th>Rmk</th><th></th></tr></thead>
+                        <tbody>
+                            ${dayEntries.map(e => `
+                                <tr>
+                                    <td>${e.type}</td>
+                                    <td>${e.qty}</td>
+                                    <td>₹${e.price}</td>
+                                    <td>₹${e.amount}</td>
+                                    <td><span class="badge ${e.status === 'Cleared' ? 'badge-cleared' : 'badge-uncleared'}">${e.status}</span></td>
+                                    <td style="color:#777;">${e.remark || ''}</td>
+                                    <td style="text-align:right;"><button class="delete-btn" onclick="deleteEntry(${e.id})">x</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            container.appendChild(groupDiv);
+        });
+    }
+
+    function toggleGroup(header) {
+        const content = header.nextElementSibling;
+        const icon = header.querySelector('.toggle-icon');
+        if (content.style.display === "block") { content.style.display = "none"; icon.classList.remove('rotate'); } 
+        else { content.style.display = "block"; icon.classList.add('rotate'); }
+    }
+
+    function deleteEntry(id) {
+        if(confirm("Delete entry?")) {
+            entries = entries.filter(e => e.id !== id);
+            saveAndRender();
+        }
+    }
+
+    function saveAndRender() { localStorage.setItem('courierData', JSON.stringify(entries)); renderList(); }
+    
+    function backupData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(entries));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "courier_backup_" + new Date().toISOString().slice(0,10) + ".json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function restoreData(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (Array.isArray(data)) {
+                    if(confirm("Restore data? Current list will be replaced.")) {
+                        entries = data;
+                        saveAndRender();
+                    }
+                } else {
+                    alert("Invalid backup file.");
+                }
+            } catch (err) {
+                alert("Error reading file.");
+            }
+        };
+        reader.readAsText(file);
+        input.value = '';
+    }
+
+    // --- POPUP & SHORTCUT LOGIC ---
+    
+    document.addEventListener('keydown', (e) => {
+        // Prevent Shortcuts if Locked
+        if (isLocked) return;
+
+        const key = e.key.toLowerCase();
+        
+        // Alt + N for Single Entry (Fresh)
+        if (e.altKey && key === 'n') {
+            e.preventDefault();
+            openModal(false);
+        }
+        
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+
+    const modal = document.getElementById('entryModal');
+    const row_date = document.getElementById('row_date');
+    const p_dateInput = document.getElementById('p_dateInput');
+    const p_type = document.getElementById('p_type');
+    const p_qty = document.getElementById('p_qty');
+    const p_price = document.getElementById('p_price');
+    const p_remark = document.getElementById('p_remark');
+
+    function openModal(bulk) {
+        isBulkMode = bulk;
+        modal.style.display = 'flex';
+        
+        // Clear all fields
+        p_dateInput.value = ""; 
+        p_type.value = "";
+        p_qty.value = "";
+        p_price.value = "";
+        p_remark.value = "";
+
+        // UI Setup
+        updateBulkUI();
+        
+        // Focus Logic
+        p_dateInput.focus();
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+        isBulkMode = false;
+    }
+    
+    function updateBulkUI() {
+        if (isBulkMode) {
+            document.getElementById('bulkBadge').style.display = 'inline-block';
+            row_date.classList.add('bulk-hidden'); // Hide date in bulk
+        } else {
+            document.getElementById('bulkBadge').style.display = 'none';
+            row_date.classList.remove('bulk-hidden'); // Show date normal
+        }
+    }
+
+    // 1. Date Logic
+    p_dateInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if(p_dateInput.value) p_type.focus();
+        }
+    });
+
+    // 2. Type Logic (AUTO PRICE FILL)
+    p_type.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            
+            // Auto-fill price
+            const val = p_type.value;
+            const rate = rates[val];
+            if (rate && rate !== "manual") {
+                p_price.value = rate;
+            } else {
+                p_price.value = ""; // Clear for manual
+            }
+            
+            if(val) p_qty.focus();
+        }
+    });
+
+    // 3. Qty Logic
+    p_qty.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            p_price.focus();
+        }
+    });
+
+    // 4. Price Logic
+    p_price.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            p_remark.focus();
+        }
+    });
+
+    // 5. Remark Logic (The Magic Switch)
+    p_remark.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            
+            // If Shift+Enter detected OR already in Bulk Mode
+            if (e.shiftKey || isBulkMode) {
+                // If it was normal, switch to bulk now
+                if (!isBulkMode) {
+                    isBulkMode = true;
+                    updateBulkUI();
+                }
+                submitPopupEntry(true); // Keep open
+            } else {
+                // Normal Enter -> Save & Close
+                submitPopupEntry(false);
+            }
+        }
+    });
+
+    function submitPopupEntry(keepOpen) {
+        const date = p_dateInput.value;
+        const type = p_type.value;
+        const qty = parseFloat(p_qty.value) || 1;
+        const price = parseFloat(p_price.value) || 0;
+        const remark = p_remark.value;
+
+        if (!date || !type) { alert("Date or Type missing!"); return; }
+
+        const amount = price * qty;
+        
+        // Save
+        saveToData(date, type, qty, price, amount, "Uncleared", remark);
+
+        // Flow Logic
+        if (keepOpen) {
+            // Clear fields but keep Date (which is now hidden)
+            p_type.value = "";
+            p_qty.value = "";
+            p_price.value = "";
+            p_remark.value = "";
+            setTimeout(() => { p_type.focus(); }, 10);
+        } else {
+            closeModal();
+        }
+    }
+</script>
+
+</body>
+</html>

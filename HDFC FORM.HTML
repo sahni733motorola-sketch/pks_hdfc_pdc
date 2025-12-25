@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDFC & PNB Manager</title>
+    <style>
+        /* ================= GENERAL STYLES ================= */
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body { margin: 0; padding: 0; background-color: #f0f0f0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; }
+        input, textarea { text-transform: uppercase; }
+
+        /* ================= PASSWORD POPUP ================= */
+        #password-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .password-card { background: linear-gradient(145deg, #ffffff, #e6e6e6); padding: 40px; border-radius: 20px; box-shadow: 20px 20px 60px #0b0b0b, -20px -20px 60px #333; text-align: center; width: 350px; border: 2px solid #004c8f; transform-style: preserve-3d; perspective: 1000px; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        .password-card h2 { color: #004c8f; margin-bottom: 20px; }
+        .pass-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ccc; border-radius: 10px; font-size: 18px; text-align: center; outline: none; }
+        .pass-btn { background: #004c8f; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .error-msg { color: red; margin-top: 10px; display: none; font-weight: bold; }
+
+        /* ================= LAYOUT ================= */
+        .main-layout { display: flex; height: 100vh; width: 100vw; }
+        .left-panel { flex: 0 0 460px; overflow-y: auto; padding: 10px; background: #fff; border-right: 5px solid #004c8f; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+        .right-panel { flex: 1; background-color: #525659; overflow: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+
+        /* ================= DASHBOARD ================= */
+        .manager-header { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; border-bottom: 2px solid #004c8f; padding-bottom: 5px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .manager-title { color: #004c8f; margin: 0; font-size: 18px; }
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
+        .data-table th, .data-table td { border: 1px solid #ddd; padding: 2px 4px; text-align: center; vertical-align: middle; }
+        .data-table th { background-color: #004c8f; color: white; position: sticky; top: 0; z-index: 10; padding: 5px; }
+        .input-field { width: 100%; padding: 2px 4px; border: 1px solid #ccc; border-radius: 2px; font-size: 11px; height: 24px; }
+        .data-table tr:focus-within { background-color: #e3f2fd; border-left: 3px solid #004c8f; }
+        .round-check { appearance: none; width: 16px; height: 16px; border: 1px solid #999; border-radius: 50%; cursor: pointer; background-color: white; vertical-align: middle; }
+        .round-check:checked { background-color: #d9534f; border-color: #d93434; box-shadow: inset 0 0 0 3px white; }
+
+        /* BUTTONS */
+        .btn-print { background-color: #28a745; color: white; border: none; padding: 2px 6px; cursor: pointer; border-radius: 2px; font-weight: bold; font-size: 10px; }
+        .btn-action { background-color: #007bff; color: white; border: none; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 11px; }
+        .btn-refresh { background-color: #6610f2; color: white; border: none; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 11px; }
+        .btn-bulk-print { background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 11px; }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 450px; border-radius: 5px; }
+        .close { float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        #loader { display: none; color: #004c8f; font-weight: bold; font-size: 11px; }
+
+        /* ================= MOBILE SPECIFIC CSS ================= */
+        @media screen and (max-width: 768px) {
+            .right-panel { display: none; }
+            .left-panel { flex: 0 0 100% !important; width: 100% !important; border-right: none; }
+            #btnBulkParty, #btnBulkRemitter, .btn-bulk-print { display: none !important; }
+            .modal-content { width: 95% !important; margin: 5% auto; padding: 15px; }
+            .modal-content input { height: 45px; font-size: 16px; margin-bottom: 10px; }
+            .modal-content label { font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block; text-align: left; }
+            .btn-print { padding: 10px; font-size: 14px; }
+            .manager-header { gap: 10px; }
+        }
+
+        /* AUTOCOMPLETE CUSTOM STYLES */
+        .autocomplete-items { position: absolute; border: 1px solid #d4d4d4; border-bottom: none; border-top: none; z-index: 9999; top: 100%; left: 0; right: 0; background-color: #fff; max-height: 200px; overflow-y: auto; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); }
+        .autocomplete-items div { padding: 8px 10px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #d4d4d4; font-size: 11px; text-align: left; color: #000; font-weight: bold; }
+        .autocomplete-items div:hover { background-color: #e9e9e9; }
+        .autocomplete-active { background-color: #004c8f !important; color: #ffffff !important; }
+        .input-wrapper { position: relative; display: inline-block; width: 100%; }
+
+        /* ================= FORM STYLES ================= */
+        .hidden-form { display: none !important; }
+
+        /* HDFC SPECIFIC STYLES */
+        #form-page-1 { width: 210mm; height: 297mm; background-color: #fff; padding: 2mm 10mm 5mm 10mm; position: relative; border: 1px solid #000; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.5); transform-origin: top center; }
+        #form-page-1 .font-header { font-size: 12px; font-weight: bold; text-decoration: underline; } 
+        #form-page-1 .font-label { font-size: 10px; color: #000; white-space: nowrap; font-weight: 500; display: inline-block; } 
+        #form-page-1 .font-input { font-size: 11px; font-weight: bold; font-family: 'Courier New', monospace; }
+        #form-page-1 .font-terms { font-size: 8px; line-height: 1.1; text-align: justify; display: block; } 
+        #form-page-1 .bold { font-weight: bold; }
+        #form-page-1 .center { text-align: center; }
+        #form-page-1 .flex { display: flex; align-items: center; }
+        #form-page-1 .flex-between { display: flex; justify-content: space-between; align-items: flex-end; }
+        #form-page-1 .w-full { width: 100%; }
+        #form-page-1 .mt-1 { margin-top: 2px; } 
+        #form-page-1 .mb-block { margin-bottom: 8px; } 
+        #form-page-1 .border-b { border-bottom: 1px solid #000; }
+        #form-page-1 .form-input { background: transparent; border: none; border-bottom: 1px solid #000; outline: none; height: 14px; padding: 0 4px; font-family: inherit; width: 100%; font-weight: 900; color: #000; font-size: 11px; }
+        #form-page-1 .check-box { width: 12px; height: 12px; border: 1px solid #000; display: inline-block; vertical-align: middle; margin-right: 3px; text-align: center; line-height: 10px; font-size: 10px; font-weight: bold; cursor: default; }
+        #form-page-1 table.form-tbl { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.9); margin-bottom: 2px; }
+        #form-page-1 table.form-tbl td, #form-page-1 table.form-tbl th { border: 1px solid #000; padding: 1px 4px; font-size: 8px; vertical-align: middle; }
+        #form-page-1 .logo-img { height: 18px; object-fit: contain; }
+        #form-page-1 .box-row { display: inline-flex; vertical-align: bottom; background: #fff; margin-left: 2px; }
+        #form-page-1 .char-box, #form-page-1 .char-box-large, #form-page-1 .char-box-flex { border: 1px solid #000; border-right: none; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        #form-page-1 .char-box:last-child, #form-page-1 .char-box-large:last-child, #form-page-1 .char-box-flex:last-child { border-right: 1px solid #000; }
+        #form-page-1 .char-box { width: 14px; height: 14px; }
+        #form-page-1 .char-box-large { width: 20px; height: 20px; font-size: 12px; }
+        #form-page-1 .char-box-flex { flex: 1; height: 20px; font-size: 12px; }
+        #form-page-1 .row { display: flex; align-items: flex-end; margin-bottom: 2px; }
+        #form-page-1 .label-bg { background: rgba(255,255,255,0.7); padding-right: 4px; }
+        #form-page-1 .sig-container { display: flex; height: 90px !important; min-height: 90px; align-items: flex-end; border: none; background: rgba(255,255,255,0.5); gap: 20px; padding: 0 5px; margin-top: 5px; }
+        #form-page-1 .sig-label { font-size: 11px; font-weight: bold; padding-bottom: 2px; white-space: nowrap; margin-bottom: 75px; }
+        #form-page-1 .sig-col { flex: 1; text-align: center; border-right: none; font-size: 9px; padding-bottom: 2px; border-top: 1px solid #000; padding-top: 5px; }
+        #form-page-1 .footer-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 3px; position: relative; }
+        #form-page-1 .seal-container-abs { position: absolute; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #form-page-1 .seal { width: 50px; height: 50px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: bold; font-size: 9px; background: #fff; flex-direction: column; margin-bottom: 2px; }
+        #form-page-1 .bank-use-label { font-size: 8px; font-weight: bold; padding: 1px 0; background: none; color: #000; border: none; }
+        .footer-line { border-bottom: 1px solid #000; display: inline-block; height: 12px; }
+
+        /* PNB SPECIFIC STYLES - REFINED FOR PERFECT PRINT */
+        #form-page-2 { width: 210mm; height: 145mm; background-color: #fff; padding: 5mm 3mm; position: relative; border: 1px solid #000; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.5); transform-origin: top center; }
+        .pnb-container { font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+        
+        .pnb-logo-img { height: 95px; margin-right: 10px; display: block; } 
+        .pnb-app-text { font-weight: bold; font-size: 13px; text-transform: uppercase; margin-right: 5px; }
+        
+        .pnb-box-border { border: 2px solid #000; padding: 4px 10px; font-weight: bold; font-size: 13px; letter-spacing: 1px; white-space: nowrap; }
+        
+        .pnb-subtext { font-size: 9px; text-align: center; margin-top: 2px; }
+        .pnb-line { border: none; border-bottom: 1px solid #000; width: 100%; outline: none; font-weight: bold; padding: 0 5px; font-family: 'Courier New', monospace; font-size: 12px; background: transparent; }
+        
+        /* TABLE LAYOUT FIXED TO PREVENT PRINT RESIZING */
+        .pnb-table-main { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-top: 5px; margin-bottom: 5px; table-layout: fixed; }
+        .pnb-table-main th, .pnb-table-main td { border: 1px solid #000; padding: 4px; font-size: 10px; vertical-align: top; overflow: hidden; }
+        .pnb-table-main th { text-align: center; font-weight: bold; padding: 6px; }
+        
+        /* Allow wrapping in table cells for Bank and IFSC */
+        .pnb-table-main td { white-space: normal !important; word-wrap: break-word !important; }
+
+        /* UPDATED: Box Row with increased height and zero gap */
+        .pnb-box-row { display: inline-flex; gap: 0; margin-top: 5px; vertical-align: top; white-space: nowrap; }
+        
+        .pnb-fill-data {
+            font-weight: bold !important;
+            font-family: Arial, sans-serif !important;
+            font-size: 11px !important;
+            color: #000 !important;
+        }
+
+        /* STANDARD BOXES (For Bottom Debit Account) */
+        .pnb-char-box { width: 16px; height: 20px; border: 1px solid #000; border-right: none; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; font-family: Arial, sans-serif; }
+        .pnb-char-box:last-child { border-right: 1px solid #000; }
+
+        /* TALL BOXES (For Top Beneficiary Account) */
+        .pnb-char-box-tall { width: 16px; height: 40px; border: 1px solid #000; border-right: none; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; font-family: Arial, sans-serif; }
+        .pnb-char-box-tall:last-child { border-right: 1px solid #000; }
+        
+        .pnb-bottom-section { margin-top: 2px; }
+        .pnb-official-box { border: 2px solid #000; width: 250px; padding: 3px; font-size: 9px; height: 50px; }
+        
+        .pnb-sign-area { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; font-size: 10px; }
+        .pnb-sign-line { border-bottom: 1px solid #000; margin-top: 1px; display: inline-block; width: 100%; }
+        
+        /* UPDATED TEXTAREA STYLE - Auto-Expand Capable */
+        .pnb-textarea { 
+            border: none; 
+            width: 100%; 
+            min-height: 50px; /* Start height */
+            resize: none; 
+            background: transparent; 
+            text-transform: uppercase; 
+            text-align: center;
+            font-family: Arial, sans-serif; 
+            font-weight: bold;
+            font-size: 11px;
+            overflow: hidden; /* Hide scrollbar, JS will handle height */
+            line-height: 1.2; /* Better line spacing */
+            padding: 2px 4px;
+            display: block;
+        }
+
+        /* ----- SPECIAL PRINT VIEW TEXT CLASS (HIDDEN ON SCREEN) ----- */
+        .print-view-text { display: none; }
+
+        /* PRINT LOGIC */
+        #bulk-print-container { display: none; }
+        @media print {
+            @page { size: A4 portrait; margin: 0; }
+            html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; overflow: hidden !important; background-color: white !important; }
+            .left-panel, .manager-container, #password-overlay, .modal, .btn-action, .manager-header { display: none !important; }
+            body:not(.printing-bulk) .right-panel { display: block !important; width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background-color: white !important; }
+            #bulk-print-container { display: none !important; }
+            .page.hidden-form { display: none !important; }
+            
+            #form-page-1:not(.hidden-form) { 
+                display: flex !important; 
+                flex-direction: column !important;
+                justify-content: flex-end !important; 
+                width: 98% !important; 
+                margin: 0 auto !important; 
+                height: 296mm !important; 
+                padding: 5mm 10mm 15mm 10mm !important; 
+                border: none !important; 
+                box-shadow: none !important; 
+                transform: scale(1) !important; 
+                overflow: hidden !important; 
+            }
+
+            #form-page-2:not(.hidden-form) { 
+                display: block !important; 
+                margin: 0 auto !important;
+                width: 99% !important; 
+                height: auto !important;
+                min-height: 140mm !important; 
+                padding: 0mm 5mm !important; 
+                border: none !important; 
+                box-shadow: none !important; 
+                background-color: white !important; 
+                transform: scale(1) !important; 
+                transform-origin: top center !important;
+                overflow: visible !important; 
+            }
+
+            /* FIX FOR PNB TABLE HEADERS (Heading sahi karne ke liye) */
+            .pnb-table-main th {
+                white-space: normal !important; /* Text ko tutne dena hai */
+                overflow: visible !important;   /* Kuch bhi chupna nahi chahiye */
+                vertical-align: middle !important;
+                text-align: center !important;
+                padding: 2px !important;       /* Padding kam taaki jagah mile */
+                font-size: 10px !important;    /* Size adjust */
+                font-weight: bold !important;
+            }
+
+            /* FIX FOR PNB TABLE CELLS - TOP ALIGNMENT UPDATE */
+            .pnb-table-main td {
+                height: auto !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                vertical-align: top !important; /* CHANGED FROM MIDDLE TO TOP */
+                text-align: center !important;
+            }
+
+            .pnb-box-border { white-space: nowrap !important; }
+            #pnb-date { white-space: nowrap !important; }
+            .pnb-line-wrapper { white-space: nowrap !important; display: block !important; }
+            
+            .pnb-fill-data, .pnb-char-box, .pnb-char-box-tall { font-weight: bold !important; -webkit-text-stroke: 0.5px black; }
+            
+            /* --- FINAL FIX FOR CUTTING TEXT & SCROLLBARS --- */
+            /* Hide the TextArea input box in Print */
+            .pnb-textarea { display: none !important; }
+            
+            /* Show the Plain Text Div in Print - TOP ALIGN AND WRAP */
+            .print-view-text {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: flex-start !important; /* CHANGED FROM CENTER TO FLEX-START (TOP) */
+                width: 100% !important;
+                height: auto !important;
+                min-height: 40px !important;
+                font-weight: bold !important;
+                text-align: center !important;
+                font-size: 11px !important;
+                white-space: pre-wrap !important;
+                overflow: visible !important;
+                padding-top: 3px !important; /* Added gap from top border */
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="password-overlay">
+    <div class="password-card">
+        <h2>🔒 Secure Access</h2>
+        <p style="margin-bottom: 15px; color: #555;">HDFC & PNB Manager</p>
+        <input type="password" id="passInput" class="pass-input" placeholder="Enter Password" onkeyup="checkEnter(event)">
+        <button class="pass-btn" onclick="checkPassword()">Unlock System</button>
+        <p id="errorMsg" class="error-msg">Incorrect Password!</p>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="left-panel">
+        <div class="manager-header">
+            <div class="header-top">
+                <h2 class="manager-title">Multi-Bank Manager <span id="loader">Syncing...</span></h2>
+                <button class="btn-bulk-print" onclick="printAllForms()" style="visibility:hidden;">🖨️ Print All</button>
+            </div>
+            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                <button class="btn-action" id="btnBulkParty" onclick="openModal('bulkPartyModal')">+ Bulk Party</button>
+                <button class="btn-action" id="btnSingleParty" onclick="openModalAndInit('partyModal', 'singlePartyName')">+ Party</button>
+                <button class="btn-action" id="btnBulkRemitter" onclick="openModal('bulkRemitterModal')">+ Bulk Remitter</button>
+                <button class="btn-action" id="btnSingleRemitter" onclick="openModalAndInit('remitterModal', 'newRemName')">+ Remitter</button>
+                <button class="btn-refresh" onclick="fetchOnlineData()">↻ Data</button>
+            </div>
+        </div>
+        
+        <div style="background-color: #e9ecef; padding: 8px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #ccc;">
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+                <div style="flex:1;">
+                    <label style="font-weight: bold; font-size: 11px;">Remitter (Sender):</label>
+                    <input type="text" list="remitter-list" id="remitter-input" class="input-field" placeholder="Select Remitter" oninput="fillRemitterDetails()" style="width: 100%;">
+                    <datalist id="remitter-list"></datalist>
+                </div>
+                <div style="width: 100px;">
+                    <label style="font-weight: bold; font-size: 11px;">Form Date:</label>
+                    <input type="date" id="commonDate" class="input-field">
+                </div>
+            </div>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 25px;">#</th>
+                    <th>Party Name</th>
+                    <th style="width: 70px;">Chq No.</th>
+                    <th style="width: 80px;">Amount</th>
+                    <th style="width: 30px;">PNB</th>
+                    <th style="width: 40px;">Prnt</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+        <datalist id="party-list"></datalist>
+    </div>
+
+    <div class="right-panel">
+        <div class="page" id="form-page-1">
+            <div class="flex-between" style="border-bottom: none; padding-bottom: 4px;">
+                <div class="flex">
+                    <div class="check-box" id="chk-rtgs"></div> <span class="font-label bold" style="margin-right: 30px;">RTGS</span>
+                    <div class="check-box" id="chk-neft"></div> <span class="font-label bold">NEFT</span>
+                </div>
+                <div class="font-header">RTGS / NEFT Request Form</div>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/HDFC_Bank_Logo.svg/2560px-HDFC_Bank_Logo.svg.png" alt="HDFC Bank" class="logo-img">
+            </div>
+            <div class="bold font-label mt-1" style="text-decoration: underline; font-size: 10px;">For RTGS / NEFT</div>
+
+            <table class="form-tbl mt-1">
+                <tr><td colspan="2" class="center bold">Maximum Limit for NEFT Transaction</td></tr>
+                <tr><td width="70%">HDFC Bank Customer</td><td>No Limit</td></tr>
+                <tr><td>HDFC Bank Customer - Indo Nepal NEFT Remittance</td><td>via Account - Up to INR 200000/-</td></tr>
+                <tr><td>Non HDFC Bank Customer & Indo Nepal NEFT Remittance</td><td>Up to INR 50,000/-</td></tr>
+                <tr><td colspan="2">Purpose of Remittance to Nepal - tick one (Family Maintenance / Retirement Fund / Pension Fund / Others_____)</td></tr>
+            </table>
+
+            <div class="row"><span class="font-label label-bg">Time</span> <input type="text" class="form-input" style="width: 80px;"></div>
+            <div class="row"><span class="font-label label-bg">Customers Name</span> <input type="text" id="form-remitter-name" class="form-input w-full"></div>
+            <div class="row">
+                <span class="font-label label-bg">Account no</span> <input type="text" id="form-remitter-acc" class="form-input" style="width: 200px; margin-right: 10px;">
+                <span class="font-label label-bg">Chq no</span> <input type="text" id="print-chq" class="form-input" style="width: 120px; margin-right: 10px;">
+                <span class="font-terms" style="align-self: center;">favouring HDFC Bank Ltd for NEFT/RTGS (whichever applicable)</span>
+            </div>
+            <div class="row" style="border-bottom: none; padding-bottom: 2px;">
+                <span class="font-label label-bg">Mobile No</span> <input type="text" id="form-remitter-mobile" class="form-input" style="width: 160px; margin-right: 20px;">
+                <span class="font-label label-bg">Tel No</span> <input type="text" class="form-input w-full">
+            </div>
+
+            <div class="row mt-1">
+                <span class="font-label label-bg">Remitter Legal Entity Identifier Code (LEI)</span>
+                <div class="box-row" style="flex: 1; display: flex;">
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                </div>
+            </div>
+            <div class="font-terms" style="padding-left: 210px;">(*Only applicable for Rs.50 cr & above transaction for non-individual accounts)</div>
+            
+            <div class="row">
+                <span class="font-label label-bg">LEI Expiry Date:</span>
+                <div class="box-row" style="margin-left: 5px;">
+                    <div class="char-box"></div><div class="char-box"></div> <span style="margin:0 2px;">/</span>
+                    <div class="char-box"></div><div class="char-box"></div> <span style="margin:0 2px;">/</span>
+                    <div class="char-box"></div><div class="char-box"></div><div class="char-box"></div><div class="char-box"></div>
+                </div>
+            </div>
+
+            <div class="row"><span class="font-label label-bg">Address of Remitter (Mandatory for Non HDFC Bank Customer)</span><input type="text" class="form-input w-full"></div>
+            <div class="row" style="justify-content: flex-end;"><span class="font-label label-bg">Email id</span><input type="text" class="form-input" style="width: 220px;"></div>
+            <div class="row" style="padding-bottom: 2px;"><span class="font-label label-bg">In case of Non HDFC Bank Customer Amount of Cash Deposited Rs.</span><input type="text" class="form-input w-full"></div>
+
+            <div class="font-header mt-1" style="font-size: 13px; text-decoration: underline;">Beneficiary details :</div>
+            <div class="row mt-1">
+                <span class="font-label label-bg">Name</span> <input type="text" id="print-name" class="form-input" style="flex:1; margin-right: 15px;">
+                <span class="font-label label-bg">Beneficiary Contact No.</span> <input type="text" class="form-input" style="width: 150px;">
+            </div>
+            <div class="row"><span class="font-label label-bg">Address</span><input type="text" class="form-input w-full"></div>
+
+            <div class="row" style="margin-bottom: -1px;">
+                <span class="font-label label-bg" style="width: 150px;">Account No :</span>
+                <div class="box-row" id="acc-box-container">
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <span class="font-label label-bg" style="width: 150px;">Re-Confirm Account No:</span>
+                <div class="box-row" id="re-acc-box-container">
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                    <div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div><div class="char-box-large"></div>
+                </div>
+            </div>
+
+            <div class="row">
+                <span class="font-label label-bg">Bank Name & Branch :</span> <input type="text" id="print-bank" class="form-input" style="flex:1; margin-right: 10px;">
+                <span class="font-label label-bg">IFSC Code</span> <input type="text" id="print-ifsc" class="form-input" style="width: 120px;">
+            </div>
+
+            <div class="row">
+                <span class="font-label label-bg">A/c Type :</span>
+                <span style="font-size: 10px;">
+                    <div class="check-box"></div> Resident &nbsp; <div class="check-box"></div> Non Resident &nbsp; <div class="check-box"></div> FCRA
+                </span>
+                <span class="font-label label-bg" style="margin-left: 20px;">Purpose</span> <input type="text" class="form-input" style="flex:1;">
+            </div>
+
+            <div class="row mt-1">
+                <span class="font-label label-bg">Beneficiary Legal Entity Identifier Code (LEI)</span>
+                <div class="box-row" style="flex: 1; display: flex;">
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                    <div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div><div class="char-box-flex"></div>
+                </div>
+            </div>
+            <div class="font-terms" style="padding-left: 210px; margin-top: -2px;">(*Only applicable for Rs 50 cr & above transaction for non-individual accounts)</div>
+            
+            <div class="row">
+                <span class="font-label label-bg">LEI Expiry Date:</span>
+                <div class="box-row" style="margin-left: 5px;">
+                    <div class="char-box"></div><div class="char-box"></div> <span style="margin:0 2px;">/</span>
+                    <div class="char-box"></div><div class="char-box"></div> <span style="margin:0 2px;">/</span>
+                    <div class="char-box"></div><div class="char-box"></div><div class="char-box"></div><div class="char-box"></div>
+                </div>
+            </div>
+            <div class="row mt-1"><span class="font-label label-bg">Amount to be credited (in figures):</span> <input type="text" id="print-amt-fig" class="form-input" style="width: 200px;"></div>
+            <div class="row"><span class="font-label label-bg">Amount to be credited (in Words):</span> <input type="text" id="print-amt-word" class="form-input w-full"></div>
+            <div class="row"><span class="font-label label-bg">Remarks:</span> <input type="text" class="form-input w-full"></div>
+
+            <div style="border-top: none; padding-top: 2px; margin-top: 2px;">
+                <div class="font-terms mb-block">
+                    <span class="bold">Beneficiary Bank Account Name Verification (BANV) (Not applicable for Indo-Nepal Remittance):</span> To ensure a smooth transaction, HDFC Bank requires you to confirm how the account name details should be verified. If you want HFDC Bank to process your transaction, then select either of one option.
+                </div>
+                
+                <div class="font-terms mb-block">
+                    <span class="bold">Option 1 – HDFC Bank to verify the beneficiary bank account name</span><br>
+                    beneficiary’s bank account name and request HDFC Bank to verify the same. If the verification fails due to any reason whatsoever including but not limited to <br>
+                    mismatch in beneficiary bank account name with the details provided hereinabove, I/We authorise HDFC Bank to cancel the transaction and not to process it.
+                </div>
+
+                <div class="font-terms mb-block">
+                    <span class="bold">Option 2 - Beneficiary bank account name is verified by the customer/remitter</span><br>
+                    beneficiary bank account number, IFSC code and the same belongs to the intended beneficiary, details given hereinabove. I/We authorise HDFC Bank to transfer <br>
+                    the funds as per the request and details mentioned hereinabove at my/our own risk and consequences, even if the beneficiary’s bank account name verification is not successful at <br>
+                    Bank’s end due to any reason. I/We shall not hold HDFC Bank responsible and liable for such remittance.
+                </div>
+
+                <div class="font-terms" style="padding-bottom: 2px; border-bottom: none;">
+                    <span class="bold">I/we agree to terms and conditions mentioned overleaf.</span> For Indo Nepal remittance. I/we declare that the remittance is for above selected purpose only.<br>
+                    Signature of Authorized signatory
+                </div>
+            </div>
+
+            <div class="sig-container">
+                <div class="sig-label">Signature of Authorized signatory</div>
+                <div class="sig-col">1st Signatory</div>
+                <div class="sig-col">2nd Signatory</div>
+                <div class="sig-col">3rd Signatory</div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 2px; border-top: 1px solid #000; padding-top: 2px;">
+                <div style="flex: 0 0 35%; font-size: 8px; line-height: 1.2;">
+                     <span class="bold">Please attach a copy of cheque / cancelled cheque of the account from where the transfer is initiated OR fill the following details of the cheque attached:</span><br>
+                     Cheque No. <span style="border-bottom:1px solid #000; width: 60px; display:inline-block;"></span> Cheque Date <span style="border-bottom:1px solid #000; width: 60px; display:inline-block;"></span>
+                </div>
+                <div style="flex: 1; font-size: 8px; line-height: 1.1; text-align: justify;">
+                     <span class="bold">Conditions for transfer:</span>
+                     <ol style="margin: 0; padding-left: 15px;">
+                         <li>HDFC Bank shall not be liable for any loss or damage arising or resulting from delay in transmission delivery or non-delivery of Electronic message or any mistake, omission, or error in transmission or delivery thereof or in deciphering the message from any cause whatsoever or from its misinterpretation received or the action of the destination Bank or any act or even beyond control.</li>
+                         <li>All payment instructions should be checked carefully by the remitter.</li>
+                         <li>Messages received after cut-off time will be sent on the next working day.</li>
+                         <li>The Transfer is effected for the net amount of the remittance, any charges of the destination bank/agent etc is for the account of beneficiary.</li>
+                     </ol>
+                </div>
+            </div>
+
+            <div class="mt-1 bank-use-label" style="border-top: 1px solid #000; padding-top: 2px;">For bank Use only</div>
+            <table class="form-tbl">
+                <tr><td width="50%">Processed by (Emp code and sign)</td><td width="50%">Authorized by (Emp code and sign)</td></tr>
+                <tr><td style="height: 15px;">DD / MC / UTR No</td><td>Ref No</td></tr>
+                <tr><td>Charges Recovered Rs (applicable only for Non Customer):</td><td rowspan="2" style="vertical-align: bottom;">Day end Checked by</td></tr>
+                <tr><td>Transaction Authorized by (2nd Level)(for amount > 5 lacs).</td></tr>
+                <tr><td>KYC documentation done by (only for Non-HDFC Bank Customers)</td><td style="height: 12px;"></td></tr>
+                <tr><td>BANV Status: &nbsp; <div class="check-box"></div> Success &nbsp; <div class="check-box"></div> Failed</td><td style="height: 12px;"></td></tr>
+                <tr><td colspan="2">Remark for BANV:</td></tr>
+            </table>
+
+            <div class="footer-section">
+                <div class="font-label bold" style="text-decoration: underline;">Customers Copy</div>
+                <div class="font-terms" style="margin-top: 2px; line-height: 1.3; font-size: 8.5px; width: 85%;">
+                    Received application for RTGS / NEFT for an amount of Rs. <span class="footer-line" style="width: 80px;">&nbsp;</span> 
+                    vide Cash / Cheque number <span class="footer-line" style="width: 70px;">&nbsp;</span> 
+                    to be credited to account number <span class="footer-line" style="width: 120px;">&nbsp;</span> of <span class="footer-line" style="width: 120px;">&nbsp;</span> <br>
+                    Bank with IFSC Code <span class="footer-line" style="width: 80px;">&nbsp;</span> Customers will be guided by the Terms and Conditions mentioned in the form. <br>
+                    HDFC Bank will accept no liability for any consequences arising out of erroneous details provided by the Customer.
+                </div>
+                <div class="flex-between" style="margin-top: 2px;">
+                    <div class="font-label bold" style="font-size: 8px;">Request for MC / DD / RTGS and NEFT can also be placed using NetBanking</div>
+                    <div class="seal-container-abs">
+                        <div class="seal">Bank<br>Seal</div>
+                        <div class="font-label bold" style="font-size: 9px; margin-top: 2px;">For HDFC Bank</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page hidden-form" id="form-page-2">
+            <div class="pnb-container">
+                <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                    <img src="https://i.ibb.co/VWLbWpJ7/1766249540696.png" class="pnb-logo-img" alt="PNB Logo" style="height: 85px;"> 
+
+                    <div style="text-align: center; padding-top: 10px; flex-grow: 1;">
+                        <div style="display: inline-flex; align-items: center; gap: 5px;">
+                            <span class="pnb-app-text">APPLICATION FORM</span>
+                            <div class="pnb-box-border">RTGS | NEFT | DRAFT</div>
+                        </div>
+                        <div style="font-size:10px; margin-top: 5px;">Strike down which is not applicable</div>
+                    </div>
+                    
+                    <div style="width: 100px;"></div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; margin-bottom: 10px;">
+                    <div style="font-weight:bold; font-size:11px;">B.O __________________</div>
+                    <div style="font-size:12px;">
+                        Date: <span id="pnb-date" class="pnb-fill-data" style="letter-spacing:2px; white-space:nowrap;"></span>
+                    </div>
+                </div>
+                <div style="margin-bottom:5px; font-size:11px;">
+                    Please issue draft on <input type="text" class="pnb-line" style="width:200px;"> / transfer through RTGS/NEFT for ₹ <input type="text" class="pnb-line pnb-fill-data" id="pnb-amt-fig-top" style="width:100px;">
+                    <br>
+                    
+                    <div style="margin-top: 10px; position: relative; display: flex; align-items: flex-end;">
+                        <span style="white-space: nowrap; font-size: 11px;">[Rupees (in words)</span>
+                        <div style="margin-left: 5px; flex-grow: 1; border-bottom: 1px solid #000; position: relative; height: 20px;">
+                            <input type="text" id="pnb-amt-word" class="pnb-fill-data" style="border:none; width:100%; outline:none; background:transparent; font-weight:bold; font-size: 11px; position: absolute; bottom: 0;">
+                        </div>
+                        <span style="white-space: nowrap; margin-left: 5px; font-size: 11px; padding-bottom: 1px;">] as under as per terms & conditions mentioned overleaf</span>
+                    </div>
+                    </div>
+
+                <table class="pnb-table-main">
+                    <thead>
+                        <tr>
+                            <th width="38%">Account No for RTGS /NEFT/Name of Beneficiary</th>
+                            <th width="15%">Beneficiary Bank & Branch name</th>
+                            <th width="10%">IFSC No / Branch Serial No</th>
+                            <th width="8%">Amount<br>₹</th>
+                            <th width="8%">Comm.<br>₹</th>
+                            <th width="21%">Total<br>₹</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="height: 100px; vertical-align: top; position: relative; padding: 0 !important;">
+                                <div class="pnb-box-row" id="pnb-acc-boxes" style="width: 100%;">
+                                    <div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div>
+                                    <div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div>
+                                    <div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div>
+                                    <div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div><div class="pnb-char-box-tall"></div>
+                                </div>
+                                <div style="margin-top: 20px; padding: 5px;">
+                                    Name <input type="text" class="pnb-line pnb-fill-data" id="pnb-ben-name" style="width:80%; border:none;">
+                                </div>
+                            </td>
+                            <td>
+                                <textarea id="pnb-ben-bank" class="pnb-textarea pnb-fill-data" oninput="auto_grow(this)" rows="3"></textarea>
+                                <div id="pnb-ben-bank-print" class="print-view-text"></div>
+                            </td>
+                            <td>
+                                <textarea id="pnb-ben-ifsc" class="pnb-textarea pnb-fill-data" oninput="auto_grow(this)" rows="3"></textarea>
+                                <div id="pnb-ben-ifsc-print" class="print-view-text"></div>
+                            </td>
+                            <td><input type="text" class="pnb-line pnb-fill-data" id="pnb-amt-fig" style="border:none;"></td>
+                            <td></td>
+                            <td><input type="text" class="pnb-line pnb-fill-data" id="pnb-amt-total" style="border:none; text-align: center;"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="margin-top:15px; font-size:11px;" class="pnb-line-wrapper">
+                    Please debit the total amount ₹ <input type="text" class="pnb-line" style="width:100px;"> to my SF/CA/OD/CC Account No
+                    <div class="pnb-box-row" id="pnb-rem-acc-boxes" style="display:inline-flex; vertical-align:middle;">
+                        <div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div>
+                        <div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div>
+                        <div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div>
+                        <div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div><div class="pnb-char-box"></div>
+                    </div>
+                </div>
+                
+                <div style="margin-top:10px; font-size:11px;">
+                    or I tender ₹ ________________ by cash (details overleaf) / enclose cheques/pay order No. <input type="text" class="pnb-line pnb-fill-data" id="pnb-chq" style="width:150px;">
+                    <br><br>
+                    drawn on ______________________ (delete which ever is not applicable)
+                </div>
+
+                <div class="pnb-bottom-section" style="display:flex; justify-content:space-between; margin-top:20px;">
+                    <div class="pnb-official-box">
+                        <b>For official use only</b><br>
+                        TXN ID/UTR No _________________<br><br>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Cashier</span><span>Auth Officer</span>
+                        </div>
+                    </div>
+                    <div class="pnb-sign-area" style="width:300px;">
+                        <div class="pnb-sign-line">Applicant's Sign</div>
+                        <div class="pnb-sign-line">Applicant's Name: <input type="text" class="pnb-line" id="pnb-rem-name" style="width:150px; border:none; visibility:hidden;"></div>
+                        <div class="pnb-sign-line">Address: ____________________</div>
+                        <div class="pnb-sign-line">Mobile No: <input type="text" class="pnb-line" id="pnb-rem-mob" style="width:120px; border:none; visibility:hidden;"></div>
+                        <div class="pnb-sign-line" style="text-align:right;">Time of Request ___________ AM/PM</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="bulk-print-container"></div>
+
+<div id="bulkPartyModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('bulkPartyModal')">&times;</span>
+        <h3>Add Bulk Party Details</h3>
+        <p style="font-size: 12px; color: #666;">Format: <b>Party Name, Account No, IFSC Code, Bank Name, Station</b></p>
+        <textarea id="bulkText" placeholder="Example:&#10;Rahul Traders, 502000123, HDFC001, HDFC Bank, Delhi"></textarea>
+        <button class="btn-print" style="margin-top: 10px; width: 100%;" onclick="saveBulkPartiesOnline()">Save & Backup</button>
+    </div>
+</div>
+
+<div id="partyModal" class="modal">
+    <div class="modal-content" style="width: 400px;">
+        <span class="close" onclick="closeModal('partyModal')">&times;</span>
+        <h3>Add Single Party</h3>
+        <label>Name:</label><input type="text" id="singlePartyName" class="enter-nav">
+        <label>Account No:</label><input type="text" id="singlePartyAcc" class="enter-nav">
+        <label>IFSC:</label><input type="text" id="singlePartyIfsc" class="enter-nav">
+        <label>Bank Name:</label><input type="text" id="singlePartyBank" class="enter-nav">
+        <label>Branch/Station:</label><input type="text" id="singlePartyStation" class="enter-nav">
+        <button class="btn-print" style="margin-top: 15px; width: 100%;" onclick="saveSinglePartyOnline()">Save Party</button>
+    </div>
+</div>
+
+<div id="bulkRemitterModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('bulkRemitterModal')">&times;</span>
+        <h3>Add Bulk Remitter Details</h3>
+        <p style="font-size: 12px; color: #666;">Format: <b>Name, HDFC Acc No, PNB Acc No, Mobile No</b></p>
+        <textarea id="bulkRemitterText" placeholder="Example:&#10;CHANDNA TRADING, 502000..., 011312..., 9876543210"></textarea>
+        <button class="btn-print" style="margin-top: 10px; width: 100%;" onclick="saveBulkRemittersOnline()">Save & Backup</button>
+    </div>
+</div>
+
+<div id="remitterModal" class="modal">
+    <div class="modal-content" style="width: 400px;">
+        <span class="close" onclick="closeModal('remitterModal')">&times;</span>
+        <h3>Add Remitter</h3>
+        <label>Name:</label><input type="text" id="newRemName" class="enter-nav">
+        <label>HDFC Account No:</label><input type="text" id="newRemHdfc" class="enter-nav">
+        <label>PNB Account No:</label><input type="text" id="newRemPnb" class="enter-nav">
+        <label>Mobile No:</label><input type="text" id="newRemMob" class="enter-nav">
+        <button class="btn-print" style="margin-top: 15px; width: 100%;" onclick="saveRemitterOnline()">Save & Backup</button>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+    // ==========================================
+    // 1. PASSWORD & CONFIG
+    // ==========================================
+    const CORRECT_PASS = "55165032";
+    let currentFocus;
+    let partyData = {};
+    let remitterData = {};
+    let rowCount = 0;
+
+    function checkPassword() {
+        const input = document.getElementById('passInput').value;
+        const overlay = document.getElementById('password-overlay');
+        const error = document.getElementById('errorMsg');
+        if(input === CORRECT_PASS) {
+            overlay.style.transition = "opacity 0.5s ease"; overlay.style.opacity = "0";
+            setTimeout(() => { 
+                overlay.style.display = "none"; 
+                document.getElementById('remitter-input').focus();
+            }, 500);
+            fetchOnlineData();
+        } else {
+            error.style.display = "block"; document.getElementById('passInput').value = "";
+            document.getElementById('passInput').focus();
+        }
+    }
+    function checkEnter(e) { if(e.key === "Enter") checkPassword(); }
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyA9QpEl7jUyxiSd77tciA_LHV7bsputsTk",
+        authDomain: "hdfc-df7d2.firebaseapp.com",
+        databaseURL: "https://hdfc-df7d2-default-rtdb.firebaseio.com",
+        projectId: "hdfc-df7d2",
+        storageBucket: "hdfc-df7d2.firebasestorage.app",
+        messagingSenderId: "879607937580",
+        appId: "1:879607937580:web:18e9c6777018a2b38d6f89",
+        measurementId: "G-35JNJ70T76"
+    };
+    try { firebase.initializeApp(firebaseConfig); var db = firebase.database(); } catch(e) { console.error(e); }
+
+    function fetchOnlineData() {
+        document.getElementById('loader').style.display = "inline";
+        db.ref('parties_v2').once('value').then((snapshot) => {
+            if(snapshot.val()) partyData = snapshot.val();
+            refreshDatalists();
+        });
+        // --- CHANGED TO V3 FOR FRESH START ---
+        db.ref('remitters_v3').once('value').then((snapshot) => {
+            if(snapshot.val()) remitterData = snapshot.val();
+            refreshDatalists();
+            document.getElementById('loader').innerText = "✅ Synced";
+            setTimeout(() => document.getElementById('loader').style.display = "none", 2000);
+        });
+    }
+
+    function addRow() {
+        rowCount++;
+        const tbody = document.getElementById('table-body');
+        let tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${rowCount}</td>
+            <td style="position: relative;">
+                <div class="input-wrapper">
+                    <input type="text" class="input-field" id="party-${rowCount}" placeholder="Name" autocomplete="off"
+                        oninput="filterPartyList(this); updatePreview(${rowCount})" 
+                        onchange="validatePartyInput(this)" 
+                        onfocus="updatePreview(${rowCount})">
+                </div>
+            </td>
+            <td><input type="text" class="input-field" id="cheque-${rowCount}" placeholder="Chq No" onfocus="updatePreview(${rowCount})" oninput="updatePreview(${rowCount})"></td>
+            <td><input type="number" class="input-field" id="amount-${rowCount}" placeholder="Amt" onfocus="updatePreview(${rowCount})" oninput="updatePreview(${rowCount})"></td>
+            <td><input type="checkbox" class="round-check" id="toggle-${rowCount}" onchange="updatePreview(${rowCount})"></td>
+            <td><button class="btn-print" onclick="printRow(${rowCount})">🖨️</button></td>
+        `;
+        tbody.appendChild(tr);
+        
+        const inp = document.getElementById(`party-${rowCount}`);
+        inp.addEventListener("keydown", function(e) {
+            let x = document.getElementById(this.id + "autocomplete-list");
+            if (x) x = x.getElementsByTagName("div");
+            if (e.keyCode == 40) { currentFocus++; addActive(x); if(x && x[currentFocus]) x[currentFocus].scrollIntoView({block: "nearest"}); } 
+            else if (e.keyCode == 38) { currentFocus--; addActive(x); if(x && x[currentFocus]) x[currentFocus].scrollIntoView({block: "nearest"}); } 
+            else if (e.keyCode == 13) { 
+                if (currentFocus > -1 && x) { e.preventDefault(); if (x) x[currentFocus].click(); } 
+                else { handleEnter(e, rowCount, 'party'); } 
+            }
+        });
+        document.getElementById(`cheque-${rowCount}`).addEventListener("keydown", (e) => handleEnter(e, rowCount, 'cheque'));
+        document.getElementById(`amount-${rowCount}`).addEventListener("keydown", (e) => handleEnter(e, rowCount, 'amount'));
+        document.querySelector('.btn-bulk-print').style.visibility = 'visible';
+    }
+
+    function validatePartyInput(input) {
+        const val = input.value.toUpperCase();
+        if (!val) return;
+        if (!partyData.hasOwnProperty(val)) {
+            alert("Please select a party from the list only. New entries are not allowed here.");
+            input.value = ""; 
+            const rowId = input.id.split('-')[1];
+            updatePreview(rowId);
+        }
+    }
+    
+    function filterPartyList(inputElement) {
+        const rawQuery = inputElement.value.toUpperCase();
+        const query = rawQuery.replace(/[.]/g, '').replace(/\s+/g, '');
+        const rowId = inputElement.id.split('-')[1];
+        closeAllLists();
+        if (!rawQuery) return false;
+        currentFocus = -1;
+        const a = document.createElement("DIV");
+        a.setAttribute("id", inputElement.id + "autocomplete-list");
+        a.setAttribute("class", "autocomplete-items");
+        inputElement.parentNode.appendChild(a);
+        let matchCount = 0;
+        for (let pName in partyData) {
+            const normalizedKey = pName.replace(/[.]/g, '').replace(/\s+/g, '');
+            const isMatch = normalizedKey.includes(query);
+            if (isMatch) {
+                matchCount++;
+                const b = document.createElement("DIV");
+                let label = pName;
+                if(partyData[pName].station) label += " 📍 " + partyData[pName].station;
+                b.innerHTML = label;
+                b.innerHTML += "<input type='hidden' value='" + pName + "'>";
+                b.addEventListener("click", function(e) {
+                    inputElement.value = this.getElementsByTagName("input")[0].value;
+                    closeAllLists();
+                    updatePreview(rowId);
+                    setTimeout(() => { const nextBox = document.getElementById(`cheque-${rowId}`); if(nextBox) nextBox.focus(); }, 50);
+                });
+                a.appendChild(b);
+            }
+        }
+        if (matchCount > 0) { const x = a.getElementsByTagName("div"); if (x.length > 0) { currentFocus = 0; addActive(x); } }
+    }
+    function addActive(x) { if (!x) return false; removeActive(x); if (currentFocus >= x.length) currentFocus = 0; if (currentFocus < 0) currentFocus = (x.length - 1); x[currentFocus].classList.add("autocomplete-active"); }
+    function removeActive(x) { for (let i = 0; i < x.length; i++) { x[i].classList.remove("autocomplete-active"); } }
+    function closeAllLists(elmnt) { var x = document.getElementsByClassName("autocomplete-items"); for (var i = 0; i < x.length; i++) { if (elmnt != x[i] && elmnt != document.getElementById("party-" + rowCount)) { x[i].parentNode.removeChild(x[i]); } } }
+    document.addEventListener("click", function (e) { closeAllLists(e.target); });
+
+    function auto_grow(element) {
+        element.style.height = "5px"; 
+        element.style.height = (element.scrollHeight) + "px"; 
+    }
+
+    function resizePnbTextareas() {
+        const bank = document.getElementById('pnb-ben-bank');
+        const ifsc = document.getElementById('pnb-ben-ifsc');
+        if(bank) auto_grow(bank);
+        if(ifsc) auto_grow(ifsc);
+    }
+
+    function updatePreview(index) {
+        const isForm2 = document.getElementById(`toggle-${index}`).checked;
+        const form1 = document.getElementById('form-page-1');
+        const form2 = document.getElementById('form-page-2');
+
+        if(isForm2) {
+            form1.classList.add('hidden-form');
+            form2.classList.remove('hidden-form');
+        } else {
+            form1.classList.remove('hidden-form');
+            form2.classList.add('hidden-form');
+        }
+
+        const pName = document.getElementById(`party-${index}`).value.toUpperCase();
+        const chqNo = document.getElementById(`cheque-${index}`).value.toUpperCase();
+        const amt = document.getElementById(`amount-${index}`).value;
+        const details = partyData[pName] || { acc: "", ifsc: "", bank: "" };
+        
+        // --- NEW LOGIC: DIRECT LOOKUP WITH FORM CHECK ---
+        const remName = document.getElementById('form-remitter-name').value.toUpperCase().trim();
+        const remData = remitterData[remName]; 
+        
+        let currentRemAcc = document.getElementById('form-remitter-acc').value; // Default to Input Box
+
+        if (remData) {
+            if (isForm2) {
+                // If PNB Button is Selected -> Use stored PNB Acc
+                currentRemAcc = remData.pnb || ""; 
+            } else {
+                // If HDFC Button is Selected (Default) -> Use stored HDFC Acc
+                currentRemAcc = remData.hdfc || "";
+            }
+        }
+        // ------------------------------------------------
+
+        if(!isForm2) {
+            document.getElementById('print-name').value = pName;
+            document.getElementById('print-chq').value = chqNo;
+            document.getElementById('print-bank').value = details.bank ? details.bank.toUpperCase() : "";
+            document.getElementById('print-ifsc').value = details.ifsc ? details.ifsc.toUpperCase() : "";
+            if(amt) {
+                document.getElementById('print-amt-fig').value = Number(amt).toLocaleString('en-IN');
+                document.getElementById('print-amt-word').value = convertNumberToWords(amt).toUpperCase(); 
+            } else { 
+                document.getElementById('print-amt-fig').value = "";
+                document.getElementById('print-amt-word').value = ""; 
+            }
+            const cleanAcc = details.acc ? details.acc.toString().replace(/\s+/g, '') : "";
+            fillBoxes('acc-box-container', cleanAcc);
+            fillBoxes('re-acc-box-container', cleanAcc);
+            const rtgsBox = document.getElementById('chk-rtgs');
+            const neftBox = document.getElementById('chk-neft');
+            rtgsBox.innerText = ""; neftBox.innerText = "";
+            const val = parseFloat(amt);
+            if(!isNaN(val) && val > 0) { if(val >= 200000) rtgsBox.innerText = "✓"; else neftBox.innerText = "✓"; }
+            
+            // For HDFC, ensure input box has the right value (visual only as HDFC uses top input)
+            // Ideally fillRemitterDetails already set HDFC, but we can enforce it.
+             if(remData && remData.hdfc) document.getElementById('form-remitter-acc').value = remData.hdfc;
+        }
+        
+        if(isForm2) {
+            const pnbChqInput = document.getElementById('pnb-chq');
+            pnbChqInput.value = chqNo;
+            const pnbBank = document.getElementById('pnb-ben-bank');
+            const pnbIfsc = document.getElementById('pnb-ben-ifsc');
+            
+            const bankVal = details.bank ? details.bank.toUpperCase() : "";
+            const ifscVal = details.ifsc ? details.ifsc.toUpperCase() : "";
+            
+            pnbBank.value = bankVal;
+            pnbIfsc.value = ifscVal;
+            
+            document.getElementById('pnb-ben-bank-print').innerText = bankVal;
+            document.getElementById('pnb-ben-ifsc-print').innerText = ifscVal;
+            
+            pnbBank.style.textAlign = 'center';
+            pnbIfsc.style.textAlign = 'center';
+            
+            resizePnbTextareas();
+
+            const pnbNameInput = document.getElementById('pnb-ben-name');
+            pnbNameInput.value = pName;
+            pnbNameInput.style.borderBottom = '1px solid #000';
+            pnbNameInput.parentElement.style.borderTop = 'none';
+            
+            // Ensure Mobile Number is populated in PNB form (even if hidden)
+            document.getElementById('pnb-rem-mob').value = document.getElementById('form-remitter-mobile').value;
+
+            if(amt) {
+                const topAmt = document.getElementById('pnb-amt-fig-top');
+                topAmt.value = Number(amt).toLocaleString('en-IN');
+                document.getElementById('pnb-amt-total').value = Number(amt).toLocaleString('en-IN');
+                document.getElementById('pnb-amt-word').value = convertNumberToWords(amt).toUpperCase();
+            } else {
+                document.getElementById('pnb-amt-fig-top').value = "";
+                document.getElementById('pnb-amt-total').value = "";
+                document.getElementById('pnb-amt-word').value = "";
+            }
+            
+            const cleanAcc = details.acc ? details.acc.toString().replace(/\s+/g, '') : "";
+            fillPnbBoxes('pnb-acc-boxes', cleanAcc);
+            
+            // FILL PNB REMITTER BOXES WITH THE CORRECT ACCOUNT
+            fillPnbBoxes('pnb-rem-acc-boxes', currentRemAcc);
+            
+            document.getElementById('pnb-date').innerText = getFormattedDate();
+        }
+    }
+
+    function printRow(index) {
+        document.body.classList.remove('printing-bulk');
+        updatePreview(index);
+        if(document.getElementById(`toggle-${index}`).checked) {
+            resizePnbTextareas();
+        }
+        window.print();
+    }
+
+    function printAllForms() {
+        const container = document.getElementById('bulk-print-container');
+        container.innerHTML = '';
+        injectBulkStyles();
+        
+        let hdfcQueue = [];
+        let pnbQueue = [];
+        
+        const baseRemName = document.getElementById('form-remitter-name').value.toUpperCase().trim();
+        // Lookup once for bulk
+        const baseRemData = remitterData[baseRemName];
+
+        for(let i=1; i<=rowCount; i++) {
+            const pNameInput = document.getElementById(`party-${i}`);
+            if (!pNameInput) continue;
+            const pName = pNameInput.value.toUpperCase();
+            if(pName && pName.trim() !== "") {
+                const isPnb = document.getElementById(`toggle-${i}`).checked;
+                
+                // --- BULK PRINT LOGIC ---
+                let currentRemAcc = "";
+                if (baseRemData) {
+                    if (isPnb) currentRemAcc = baseRemData.pnb || "";
+                    else currentRemAcc = baseRemData.hdfc || "";
+                } else {
+                    // Fallback to what is in the box
+                    currentRemAcc = document.getElementById('form-remitter-acc').value.toUpperCase();
+                }
+                // ------------------------
+
+                const rowData = {
+                    name: pName,
+                    chq: document.getElementById(`cheque-${i}`).value.toUpperCase(),
+                    amt: document.getElementById(`amount-${i}`).value,
+                    details: partyData[pName] || { acc: "", ifsc: "", bank: "" },
+                    remName: baseRemName,
+                    remAcc: currentRemAcc,
+                    remMob: document.getElementById('form-remitter-mobile').value.toUpperCase(),
+                    date: getFormattedDate()
+                };
+                if (isPnb) pnbQueue.push(rowData);
+                else hdfcQueue.push(rowData);
+            }
+        }
+
+        if (hdfcQueue.length === 0 && pnbQueue.length === 0) { alert("No data found to print!"); return; }
+
+        const hdfcTemplate = document.getElementById('form-page-1');
+        const pnbTemplate = document.getElementById('form-page-2');
+
+        hdfcQueue.forEach(data => {
+            const clone = hdfcTemplate.cloneNode(true);
+            clone.classList.remove('hidden-form');
+            clone.classList.add('hdfc-clone');
+            fillBulkForm(clone, data, false);
+            container.appendChild(clone);
+        });
+
+        for (let i = 0; i < pnbQueue.length; i += 2) {
+            const pageWrapper = document.createElement('div');
+            pageWrapper.className = 'pnb-a4-wrapper'; 
+            const form1 = pnbTemplate.cloneNode(true);
+            form1.classList.remove('hidden-form');
+            form1.style.borderBottom = "1px dashed #999"; 
+            fillBulkForm(form1, pnbQueue[i], true);
+            pageWrapper.appendChild(form1);
+            if (i + 1 < pnbQueue.length) {
+                const form2 = pnbTemplate.cloneNode(true);
+                form2.classList.remove('hidden-form');
+                form2.style.marginTop = "5mm"; 
+                fillBulkForm(form2, pnbQueue[i+1], true);
+                pageWrapper.appendChild(form2);
+            }
+            container.appendChild(pageWrapper);
+        }
+
+        document.body.classList.add('printing-bulk');
+        
+        const textareas = container.querySelectorAll('textarea');
+        textareas.forEach(el => auto_grow(el));
+
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('printing-bulk');
+        }, 500);
+    }
+
+    function fillBulkForm(clone, data, isPnb) {
+        if (!isPnb) {
+            clone.querySelector('#print-name').value = data.name;
+            clone.querySelector('#print-chq').value = data.chq;
+            clone.querySelector('#print-bank').value = data.details.bank || "";
+            clone.querySelector('#print-ifsc').value = data.details.ifsc || "";
+            if(data.amt) {
+                clone.querySelector('#print-amt-fig').value = Number(data.amt).toLocaleString('en-IN');
+                clone.querySelector('#print-amt-word').value = convertNumberToWords(data.amt).toUpperCase();
+            }
+            const cleanAcc = data.details.acc ? data.details.acc.toString().replace(/\s+/g, '') : "";
+            fillBoxesForClone(clone.querySelector('#acc-box-container').children, cleanAcc);
+            fillBoxesForClone(clone.querySelector('#re-acc-box-container').children, cleanAcc);
+            const val = parseFloat(data.amt);
+            if(!isNaN(val) && val > 0) { if(val >= 200000) clone.querySelector('#chk-rtgs').innerText = "✓"; else clone.querySelector('#chk-neft').innerText = "✓"; }
+            
+            // Set Remitter Account on Clone (HDFC Input Field)
+            clone.querySelector('#form-remitter-acc').value = data.remAcc;
+
+        } else {
+            const chqInput = clone.querySelector('#pnb-chq');
+            chqInput.value = data.chq;
+            
+            const bankArea = clone.querySelector('#pnb-ben-bank');
+            const ifscArea = clone.querySelector('#pnb-ben-ifsc');
+            
+            const bankVal = data.details.bank || "";
+            const ifscVal = data.details.ifsc || "";
+            
+            bankArea.value = bankVal;
+            ifscArea.value = ifscVal;
+            
+            // Set Print Text Values for Clones
+            clone.querySelector('#pnb-ben-bank-print').innerText = bankVal;
+            clone.querySelector('#pnb-ben-ifsc-print').innerText = ifscVal;
+            
+            auto_grow(bankArea);
+            auto_grow(ifscArea);
+
+            const nameInput = clone.querySelector('#pnb-ben-name');
+            nameInput.value = data.name;
+            clone.querySelector('#pnb-date').innerText = data.date;
+            
+            // Ensure Mobile is copied to clone
+            clone.querySelector('#pnb-rem-mob').value = data.remMob;
+
+            if(data.amt) {
+                clone.querySelector('#pnb-amt-fig-top').value = Number(data.amt).toLocaleString('en-IN');
+                clone.querySelector('#pnb-amt-total').value = Number(data.amt).toLocaleString('en-IN');
+                clone.querySelector('#pnb-amt-word').value = convertNumberToWords(data.amt).toUpperCase();
+            }
+            const cleanAcc = data.details.acc ? data.details.acc.toString().replace(/\s+/g, '') : "";
+            fillBoxesForClone(clone.querySelector('#pnb-acc-boxes').children, cleanAcc);
+            fillBoxesForClone(clone.querySelector('#pnb-rem-acc-boxes').children, data.remAcc);
+        }
+    }
+
+    function fillBoxesForClone(boxes, text) {
+        if(!text) return;
+        const str = text.toString().toUpperCase();
+        for (let i = 0; i < str.length && i < boxes.length; i++) {
+            boxes[i].innerText = str[i];
+        }
+    }
+
+    function injectBulkStyles() {
+        const oldStyle = document.getElementById('bulk-print-styles');
+        if (oldStyle) oldStyle.remove();
+        const style = document.createElement('style');
+        style.id = 'bulk-print-styles';
+        style.innerHTML = `
+            @media print {
+                html, body { height: auto !important; width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background-color: white !important; }
+                .main-layout, .left-panel, .right-panel, #password-overlay, .modal { display: none !important; }
+                #bulk-print-container { display: block !important; position: static !important; width: 100% !important; height: auto !important; overflow: visible !important; }
+                
+                .hdfc-clone { 
+                    display: flex !important; flex-direction: column !important; justify-content: flex-end !important;
+                    width: 98% !important; margin: 0 auto !important; height: 296mm !important; 
+                    page-break-after: always !important; padding: 5mm 10mm 15mm 10mm !important; 
+                }
+                
+                .pnb-a4-wrapper { 
+                    display: flex !important; flex-direction: column !important; width: 96% !important; 
+                    margin: 0 auto !important; height: 296mm !important; page-break-after: always !important; 
+                    padding-top: 10mm !important; 
+                }
+                
+                .pnb-a4-wrapper > div { padding: 0mm 10mm !important; white-space: nowrap !important; }
+                .hdfc-clone:last-child, .pnb-a4-wrapper:last-child { page-break-after: auto !important; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function getFormattedDate() {
+        const manualDate = document.getElementById('commonDate').value;
+        if(manualDate && manualDate.trim() !== "") {
+            const parts = manualDate.split('-');
+            if(parts.length === 3) return `${parts[2]} / ${parts[1]} / ${parts[0]}`;
+            return manualDate;
+        }
+        const d = new Date();
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day} / ${month} / ${year}`;
+    }
+
+    function handleEnter(e, index, field) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            if (field === 'party') document.getElementById(`cheque-${index}`).focus();
+            else if (field === 'cheque') document.getElementById(`amount-${index}`).focus();
+            else if (field === 'amount') {
+                addRow();
+                setTimeout(() => { const nextInput = document.getElementById(`party-${index + 1}`); if (nextInput) nextInput.focus(); }, 10);
+            }
+        }
+    }
+
+    function refreshDatalists() {
+        const remList = document.getElementById('remitter-list');
+        remList.innerHTML = '';
+        for (let r in remitterData) { 
+            let opt = document.createElement('option');
+            opt.value = r; 
+            remList.appendChild(opt);
+        }
+    }
+
+    function fillRemitterDetails() {
+        const name = document.getElementById('remitter-input').value.toUpperCase();
+        const details = remitterData[name];
+        document.getElementById('form-remitter-name').value = name;
+        if (details) {
+            // Default load HDFC acc
+            document.getElementById('form-remitter-acc').value = details.hdfc;
+            document.getElementById('form-remitter-mobile').value = details.mobile;
+        }
+    }
+
+    function convertNumberToWords(amount) {
+        var words = new Array();
+        words[0] = ''; words[1] = 'One'; words[2] = 'Two'; words[3] = 'Three'; words[4] = 'Four'; words[5] = 'Five'; words[6] = 'Six'; words[7] = 'Seven'; words[8] = 'Eight'; words[9] = 'Nine'; words[10] = 'Ten'; words[11] = 'Eleven'; words[12] = 'Twelve'; words[13] = 'Thirteen'; words[14] = 'Fourteen'; words[15] = 'Fifteen'; words[16] = 'Sixteen'; words[17] = 'Seventeen'; words[18] = 'Eighteen'; words[19] = 'Nineteen'; words[20] = 'Twenty'; words[30] = 'Thirty'; words[40] = 'Forty'; words[50] = 'Fifty'; words[60] = 'Sixty'; words[70] = 'Seventy'; words[80] = 'Eighty'; words[90] = 'Ninety';
+        amount = amount.toString(); var atemp = amount.split("."); var number = atemp[0].split(",").join(""); var n_length = number.length; var words_string = "";
+        if (n_length <= 9) {
+            var n_array = new Array(0, 0, 0, 0, 0, 0, 0, 0, 0); var received_n_array = new Array();
+            for (var i = 0; i < n_length; i++) { received_n_array[i] = number.substr(i, 1); }
+            for (var i = 9 - n_length, j = 0; i < 9; i++, j++) { n_array[i] = received_n_array[j]; }
+            for (var i = 0, j = 1; i < 9; i++, j++) { if (i == 0 || i == 2 || i == 4 || i == 7) { if (n_array[i] == 1) { n_array[j] = 10 + parseInt(n_array[j]); n_array[i] = 0; } } }
+            var value = "";
+            for (var i = 0; i < 9; i++) {
+                if (i == 0 || i == 2 || i == 4 || i == 7) { value = n_array[i] * 10; } else { value = n_array[i]; }
+                if (value != 0) { words_string += words[value] + " "; }
+                if ((i == 1 && value != 0) || (i == 0 && value != 0 && n_array[i + 1] == 0)) { words_string += "Crores "; }
+                if ((i == 3 && value != 0) || (i == 2 && value != 0 && n_array[i + 1] == 0)) { words_string += "Lakhs "; }
+                if ((i == 5 && value != 0) || (i == 4 && value != 0 && n_array[i + 1] == 0)) { words_string += "Thousand "; }
+                if (i == 6 && value != 0 && (n_array[i + 1] != 0 && n_array[i + 2] != 0)) { words_string += "Hundred and "; } else if (i == 6 && value != 0) { words_string += "Hundred "; }
+            }
+            words_string = words_string.split("  ").join(" ");
+        }
+        return words_string + " Only";
+    }
+
+    function fillBoxes(containerId, text) { const container = document.getElementById(containerId); const boxes = container.children; for(let box of boxes) box.innerText = ""; const str = text.toString().toUpperCase(); for (let i = 0; i < str.length && i < boxes.length; i++) { boxes[i].innerText = str[i]; } }
+    function fillPnbBoxes(containerId, text) { const container = document.getElementById(containerId); if(!container) return; const boxes = container.children; for(let box of boxes) box.innerText = ""; if(!text) return; const str = text.toString().toUpperCase(); for (let i = 0; i < str.length && i < boxes.length; i++) { boxes[i].innerText = str[i]; } }
+
+    function saveBulkPartiesOnline() {
+        const text = document.getElementById('bulkText').value; if(!text.trim()) { alert("Please paste data"); return; } const lines = text.split('\n'); let processedCount = 0;
+        for (const line of lines) { if(!line.trim()) continue; let parts = line.split('\t'); if(parts.length < 2) parts = line.split(','); if(parts.length >= 2) { let pName = parts[0].trim().toUpperCase(); let safeKey = pName.replace(/[.#$[\]/]/g, "_"); if(safeKey) { let bName = parts[3] ? parts[3].trim().toUpperCase() : ""; let brName = parts[4] ? parts[4].trim().toUpperCase() : ""; let combinedBank = bName && brName ? bName + ", " + brName : brName || bName; let accNo = parts[1] ? parts[1].trim().toUpperCase() : ""; if(accNo) { partyData[safeKey] = { acc: accNo, ifsc: parts[2] ? parts[2].trim().toUpperCase() : "", bank: combinedBank, station: brName }; processedCount++; } } } }
+        if(processedCount === 0) return alert("No valid data found!"); db.ref('parties_v2').set(partyData).then(() => { closeModal('bulkPartyModal'); alert(processedCount + " Parties Saved!"); });
+    }
+    
+    function saveSinglePartyOnline() { const name = document.getElementById('singlePartyName').value.trim().toUpperCase(); const acc = document.getElementById('singlePartyAcc').value.trim().toUpperCase(); if(!name || !acc) return alert("Name and Account Number are mandatory!"); let safeKey = name.replace(/[.#$[\]/]/g, "_"); partyData[safeKey] = { acc: acc, ifsc: document.getElementById('singlePartyIfsc').value.trim().toUpperCase(), bank: document.getElementById('singlePartyBank').value.trim().toUpperCase(), station: document.getElementById('singlePartyStation').value.trim().toUpperCase() }; db.ref('parties_v2').set(partyData).then(() => alert("Party Saved!")); }
+
+    // --- UPDATED SAVE FUNCTIONS FOR REMITTER V3 ---
+    function saveBulkRemittersOnline() { 
+        const text = document.getElementById('bulkRemitterText').value; 
+        if(!text.trim()) return alert("Please paste data"); 
+        const lines = text.split('\n'); 
+        let processedCount = 0; 
+        for (const line of lines) { 
+            if(!line.trim()) continue; 
+            let parts = line.split('\t'); 
+            if(parts.length < 2) parts = line.split(','); 
+            if(parts.length >= 2) { 
+                let rName = parts[0].trim().toUpperCase(); 
+                let safeKey = rName.replace(/[.#$[\]/]/g, "_"); 
+                if(safeKey) { 
+                    // Format: Name, HDFC, PNB, Mobile
+                    remitterData[safeKey] = { 
+                        hdfc: parts[1] ? parts[1].trim().toUpperCase() : "", 
+                        pnb: parts[2] ? parts[2].trim().toUpperCase() : "", 
+                        mobile: parts[3] ? parts[3].trim().toUpperCase() : "" 
+                    }; 
+                    processedCount++; 
+                } 
+            } 
+        } 
+        db.ref('remitters_v3').set(remitterData).then(() => alert(processedCount + " Remitters Saved!")); 
+    }
+    
+    function saveRemitterOnline() { 
+        const name = document.getElementById('newRemName').value.trim().toUpperCase(); 
+        let safeKey = name.replace(/[.#$[\]/]/g, "_"); 
+        remitterData[safeKey] = { 
+            hdfc: document.getElementById('newRemHdfc').value.toUpperCase(), 
+            pnb: document.getElementById('newRemPnb').value.toUpperCase(), 
+            mobile: document.getElementById('newRemMob').value.toUpperCase() 
+        }; 
+        db.ref('remitters_v3').set(remitterData).then(() => alert("Remitter Saved!")); 
+    }
+    // ---------------------------------------------
+
+    function openModal(id) { document.getElementById(id).style.display = "block"; }
+    function openModalAndInit(id, focusId) { document.getElementById(id).style.display = "block"; setTimeout(() => document.getElementById(focusId).focus(), 100); }
+    function closeModal(id) { document.getElementById(id).style.display = "none"; }
+    window.onclick = function(event) { if (event.target.classList.contains('modal')) event.target.style.display = "none"; }
+
+    function setupEnterNavigation(modalId, inputIds, saveFunc) {
+        inputIds.forEach((id, index) => { const el = document.getElementById(id); if(!el) return; el.addEventListener('keydown', function(e) { if(e.key === "Enter") { e.preventDefault(); if(index === inputIds.length - 1) saveFunc(); else document.getElementById(inputIds[index+1]).focus(); } }); });
+    }
+
+    window.onload = function() { 
+        addRow(); document.getElementById('passInput').focus();
+        if(document.querySelector('.btn-bulk-print')) document.querySelector('.btn-bulk-print').style.visibility = 'visible';
+        setupEnterNavigation('partyModal', ['singlePartyName', 'singlePartyAcc', 'singlePartyIfsc', 'singlePartyBank', 'singlePartyStation'], saveSinglePartyOnline);
+        setupEnterNavigation('remitterModal', ['newRemName', 'newRemHdfc', 'newRemPnb', 'newRemMob'], saveRemitterOnline);
+        const remitterInput = document.getElementById('remitter-input'); const commonDateInput = document.getElementById('commonDate');
+        if(remitterInput) { remitterInput.addEventListener('keydown', function(e) { if(e.key === "Enter") { e.preventDefault(); if(commonDateInput) commonDateInput.focus(); } }); }
+        if(commonDateInput) { commonDateInput.addEventListener('keydown', function(e) { if(e.key === "Enter") { e.preventDefault(); const firstPartyInput = document.getElementById('party-1'); if(firstPartyInput) firstPartyInput.focus(); } }); }
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheque Manager - Colour Coded V100</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        /* ========================================= */
+        /* === DESKTOP DEFAULT STYLES (WEB VIEW CUSTOMIZED) === */
+        /* ========================================= */
+        body { font-family: 'Segoe UI', sans-serif; background-color: #fff9c4; margin: 0; padding: 15px; height: 100vh; box-sizing: border-box; overflow: hidden; }
+        
+        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #2c3e50; z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; }
+        #loginBox { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; width: 300px; }
+        #loginBox h2 { margin: 0 0 20px 0; color: #333; }
+        #passInput { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 18px; text-align: center; margin-bottom: 15px; box-sizing: border-box; }
+        #unlockBtn { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; }
+
+        .container { max-width: 100%; height: 100%; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); display: none; grid-template-columns: 200px 1fr; gap: 0; overflow: hidden; }
+        
+        .left-sidebar { background: #f8f9fa; padding: 15px; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow-y: auto; }
+        .company-title { font-size: 18px; font-weight: 800; color: #c0392b; margin: 0 0 15px 0; text-align: center; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
+        
+        /* 3D DASHBOARD CARDS */
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 15px; }
+        .card { 
+            padding: 15px 10px; border-radius: 8px; color: white; text-align: center; cursor: pointer; 
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2), 0 6px 10px rgba(0,0,0,0.2);
+            transition: all 0.1s; transform: translateY(0); border: 1px solid rgba(255,255,255,0.2);
+        }
+        .card:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.2), 0 2px 2px rgba(0,0,0,0.2); }
+        .bg-blue { background: linear-gradient(135deg, #3498db, #2980b9); } 
+        .bg-green { background: linear-gradient(135deg, #27ae60, #219150); } 
+        .bg-red { background: linear-gradient(135deg, #c0392b, #a93226); } 
+        .bg-orange { background: linear-gradient(135deg, #f39c12, #d35400); }
+        .card h3 { margin: 0; font-size: 18px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); } 
+        .card p { margin: 2px 0 0; font-size: 10px; text-transform: uppercase; font-weight: bold; opacity: 0.9; }
+
+        .btn-action { 
+            width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; font-size: 13px; 
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2); transition: transform 0.1s;
+        }
+        .btn-action:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.2); }
+        .btn-backup { background: linear-gradient(#d35400, #a04000); } 
+        .btn-restore { background: linear-gradient(#7f8c8d, #616a6b); }
+
+        .middle-panel { display: flex; flex-direction: column; min-width: 0; height: 100%; border-right: none; background: #fdfdfd; overflow: hidden; position: relative; }
+        
+        .action-bar { padding: 10px 15px; border-bottom: 1px solid #eee; display: flex; gap: 10px; background: #fff; flex-shrink: 0; z-index: 20; position: relative; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        
+        .search-container { position: relative; flex-grow: 1; }
+        .search-container input { 
+            width: 100%; padding: 6px 10px 6px 30px; border-radius: 20px; border: 1px solid #ccc; outline: none; 
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); font-size: 13px;
+        }
+        .search-container i { position: absolute; left: 10px; top: 8px; color: #888; font-size: 12px; }
+        
+        .btn-top { 
+            border: none; padding: 6px 15px; border-radius: 6px; cursor: pointer; color: white; font-weight: 600; font-size: 12px;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.2); transition: transform 0.1s;
+        }
+        .btn-top:active { transform: translateY(3px); box-shadow: none; }
+        .btn-add { background: linear-gradient(#2c3e50, #1a252f); } 
+        .btn-bulk { background: linear-gradient(#8e44ad, #71368a); } 
+        .btn-reset { background: linear-gradient(#95a5a6, #7f8c8d); }
+
+        .table-wrapper { flex: 1; overflow-y: auto; padding: 5px; }
+        
+        /* === SLIM 3D LIST (WEB VIEW) === */
+        table { 
+            width: 100%; border-collapse: separate; 
+            border-spacing: 0 4px; 
+            font-size: 11px; 
+        }
+        
+        /* MODIFIED: Reduced Padding for Compact View */
+        thead th { 
+            position: sticky; top: 0; background: #f1f1f1; color: #555; 
+            padding: 8px 2px; /* Reduced Horizontal Padding */
+            text-align: left; 
+            border-bottom: 1px solid #ddd; z-index: 10; white-space: nowrap; font-size: 11px;
+            vertical-align: middle; cursor: pointer; 
+            transition: background 0.2s;
+        }
+        thead th:hover { background: #e0e0e0; color: #000; }
+        
+        tbody tr {
+            background: linear-gradient(to bottom, #ffffff, #f7f7f7);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1), 0 1px 0 #ccc;
+            border-radius: 4px;
+            transition: transform 0.1s;
+        }
+        
+        /* COLOURED ROWS */
+        tbody tr.st-InBank { background: linear-gradient(to bottom, #e3f2fd, #bbdefb); border: 1px solid #90caf9; }
+        tbody tr.st-Cleared { background: linear-gradient(to bottom, #e8f8f5, #d1f2eb); border: 1px solid #a3e4d7; }
+        tbody tr.st-Returned { background: linear-gradient(to bottom, #fdedec, #fadbd8); border: 1px solid #f5b7b1; }
+        tbody tr.st-PDC { background: linear-gradient(to bottom, #fef5e7, #fae5d3); border: 1px solid #f5cba7; }
+
+        tbody tr:hover { transform: translateY(-1px); filter: brightness(0.98); z-index: 5; position: relative; }
+        
+        /* MODIFIED: Zero Gap (2px Padding) for Compact List */
+        td { 
+            padding: 4px 2px; /* Minimized horizontal spacing */
+            border: none; color: #333; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; 
+        }
+        td:first-child { border-top-left-radius: 4px; border-bottom-left-radius: 4px; padding-left: 5px; }
+        td:last-child { border-top-right-radius: 4px; border-bottom-right-radius: 4px; padding-right: 5px; }
+        
+        /* === MODIFIED: DATE HEADER STYLING (SHIFT+D) === */
+        @media screen and (min-width: 769px) {
+            tr.date-header { display: none; } 
+            body.show-web-headers tr.date-header { display: table-row; } 
+            
+            tr.date-header td { 
+                background: #333 !important; /* CHANGED: Light Black */
+                color: #fff !important; 
+                font-size: 14px !important; 
+                font-weight: bold;
+                padding: 8px !important;
+                text-align: center;
+                border-radius: 4px; 
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                letter-spacing: 1px;
+            }
+        }
+        
+        tbody tr.selected-row { filter: brightness(0.9); border-left: 3px solid #2c3e50; }
+        tfoot td { position: sticky; bottom: 0; background-color: #2c3e50; color: white; font-weight: bold; padding: 6px; z-index: 10; border-radius: 4px; font-size: 12px; }
+
+        .right-preview { display: none; } 
+
+        /* ======================================================== */
+        /* === DESKTOP POPUP - SLIM 3D STRIP BEHIND BAR === */
+        /* ======================================================== */
+        .modal { display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.05); }
+        
+        @media screen and (min-width: 769px) {
+            .modal-content { 
+                background: linear-gradient(145deg, #ffffff, #fdfdfd);
+                margin: 0; padding: 15px; 
+                position: absolute; top: 55px; right: 20px; 
+                width: 280px; height: auto; max-height: 80vh;
+                border-radius: 0 0 10px 10px; 
+                box-shadow: 0 10px 25px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9);
+                border: 1px solid #ccc; border-top: 3px solid #2c3e50; 
+                animation: slideDown3D 0.3s ease-out;
+                transform-origin: top center; overflow-y: auto; z-index: 10;
+            }
+            @keyframes slideDown3D { 0% { transform: translateY(-100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+            
+            .modal-content input, .modal-content select { padding: 5px; font-size: 11px; height: 28px; }
+            .modal-content label { font-size: 10px; margin-bottom: 2px; }
+            .modal-content h3 { font-size: 14px; margin-bottom: 10px; }
+        }
+
+        .bulk-modal { width: 95%; height: 95%; display: flex; flex-direction: column; background: white; margin: 2% auto; position: relative; }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 18px; cursor: pointer; color: #777; transition: 0.2s; }
+        .close-btn:hover { color: #c0392b; transform: scale(1.1); }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .full-width { grid-column: span 2; }
+        
+        input, select { 
+            width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 12px; 
+            background: #fff; transition: 0.2s;
+        }
+        input:focus { border-color: #3498db; }
+        
+        .form-grid.bulk-view .form-group { display: none; } 
+        .form-grid.bulk-view .show-in-bulk { display: block !important; grid-column: span 2; }
+        .form-grid.bulk-view input { padding: 15px; font-size: 16px; border: 2px solid #27ae60; }
+        #bulkBadge { display:none; background:#e67e22; color:white; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:10px; vertical-align: middle; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% {opacity:1;} 50% {opacity:0.7;} 100% {opacity:1;} }
+        .date-wrapper { position: relative; }
+        .date-wrapper input { padding-right: 35px; }
+        .cal-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #7f8c8d; cursor: pointer; }
+        .hidden-date-picker { position: absolute; right: 0; top: 0; width: 30px; height: 100%; opacity: 0; cursor: pointer; }
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 12px; position: fixed; z-index: 6000; left: 50%; bottom: 30px; transform: translateX(-50%); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
+        .btn-delete { background: linear-gradient(#e74c3c, #c0392b); padding: 6px 12px; border-radius: 4px; color: white; border:none; cursor:pointer; font-size: 11px; box-shadow: 0 2px 0 #922b21; }
+        .btn-save { background: linear-gradient(#27ae60, #219150); border:none; color:white; cursor:pointer; padding: 6px 20px; border-radius: 4px; font-size: 11px; box-shadow: 0 2px 0 #145a32; }
+
+        /* HIDE MOBILE ELEMENTS ON DESKTOP */
+        .mob-header-bar, .mob-chq-no, .mob-station, .mob-sub-date, .mob-sub-chq { display: none; }
+
+        /* ================================================= */
+        /* === MOBILE VIEW (UNCHANGED) === */
+        /* ================================================= */
+        @media screen and (max-width: 768px) {
+            body { padding: 0; background-color: #f0f2f5; height: 100vh; overflow: hidden; }
+            
+            .container { 
+                display: flex !important; flex-direction: column !important; 
+                border-radius: 0; height: 100% !important; width: 100% !important;
+                box-shadow: none; 
+            }
+            
+            .web-only { display: none !important; }
+            .web-col { display: none !important; } 
+            .web-station { display: none !important; } 
+            
+            /* SHOW MOBILE ELEMENTS */
+            .mob-sub-date { display: block !important; }
+            .mob-sub-chq { display: block !important; }
+
+            .company-title { display: none; }
+            .btn-action { display: none; }
+            .right-preview { display: none; }
+            
+            /* HEADER */
+            .mob-header-bar {
+                display: flex; justify-content: center; align-items: center; position: relative;
+                background: linear-gradient(180deg, #2c3e50, #22303f); 
+                padding: 45px 15px 15px 15px; 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+                flex-shrink: 0; z-index: 600; 
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            .mob-header-bar h2 { 
+                margin: 0; font-size: 22px; font-weight: 800; color: #ffffff;
+                text-align: center; text-transform: uppercase; letter-spacing: 0.5px;
+                text-shadow: 2px 2px 0px #1a252f, 3px 3px 2px rgba(0,0,0,0.3);
+            }
+            .mob-header-bar span { position: absolute; right: 15px; bottom: 15px; font-size: 10px; opacity: 0.5; }
+
+            /* DASHBOARD */
+            .left-sidebar { 
+                flex: none !important; width: 100% !important; padding: 10px; background: #f0f2f5; 
+                border-bottom: 1px solid #ddd; border-right: none !important; 
+                display: flex !important; flex-direction: row !important; gap: 8px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; order: 0; 
+            }
+            .left-sidebar::-webkit-scrollbar { display: none; } 
+            .dashboard { display: flex; gap: 8px; margin: 0; width: auto; }
+            
+            /* 3D DASHBOARD CARDS */
+            .card { 
+                flex: 0 0 auto; min-width: 80px; padding: 6px 8px; border-radius: 10px; 
+                box-shadow: 0 4px 0 rgba(0,0,0,0.2), 0 5px 8px rgba(0,0,0,0.2); 
+                border: 1px solid rgba(255,255,255,0.2);
+                transform: translateY(0); transition: transform 0.1s; position: relative; top: 0;
+            }
+            .card:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.2), 0 2px 2px rgba(0,0,0,0.2); }
+            .card h3 { font-size: 13px; margin-bottom: 1px; text-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+            .card p { font-size: 9px; font-weight: 700; opacity: 0.9; }
+
+            /* MIDDLE LIST */
+            .middle-panel { flex: 1 !important; border: none; background: #fff; display: flex; flex-direction: column; width: 100% !important; overflow: hidden; }
+            .action-bar { padding: 8px 10px; background: #fff; border-bottom: 1px solid #eee; flex-shrink: 0; }
+            .search-container input { 
+                background: #fff; border: 1px solid #eee; box-shadow: 0 3px 6px rgba(0,0,0,0.05), inset 0 -2px 0 rgba(0,0,0,0.02); 
+                padding: 8px 10px 8px 35px; border-radius: 20px; font-size: 14px;
+            }
+            .search-container i { top: 10px; left: 12px; font-size: 13px; color: #999; }
+            .btn-reset { display: none; }
+            .table-wrapper { padding: 0; overflow-y: auto; flex: 1; }
+            table { display: block; width: 100%; border-collapse: collapse; border-spacing: 0; }
+            thead { display: none; }
+            
+            /* DATE HEADER */
+            tr.date-header { display: block !important; margin: 0; background: #f9f9f9 !important; padding: 2px 10px; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; }
+            tr.date-header td { 
+                display: block; background: transparent; padding: 0; width: 100%;
+                color: #555; font-size: 10px; font-weight: 700; text-transform: uppercase; border: none; text-align: left;
+                box-shadow: none; border-radius: 0;
+            }
+            tr.date-header span { display: inline; color: #000; font-weight: 800; font-size: 10px; }
+
+            /* MOBILE ROW (LIGHT BROWN 3D) */
+            tbody tr:not(.date-header) {
+                display: grid;
+                grid-template-columns: 75px 1fr 110px; 
+                gap: 4px;
+                background: linear-gradient(145deg, #fffdf9, #eaddcf);
+                margin: 6px 10px; padding: 4px 10px; 
+                border-radius: 8px; border: 1px solid rgba(255,255,255,0.5);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+                align-items: center; height: auto; min-height: 35px;
+            }
+            
+            tbody tr:not(.date-header)::before { 
+                content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+                background: #ccc; border-top-left-radius: 8px; border-bottom-left-radius: 8px;
+            }
+
+            /* --- STATUS COLOURS --- */
+            tr.st-InBank td, tr.st-InBank span, tr.st-InBank .mob-chq-no { color: #3498db !important; }
+            tr.st-InBank::before { background: #3498db !important; }
+            tr.st-Cleared td, tr.st-Cleared span, tr.st-Cleared .mob-chq-no { color: #27ae60 !important; }
+            tr.st-Cleared::before { background: #27ae60 !important; }
+            tr.st-Returned td, tr.st-Returned span, tr.st-Returned .mob-chq-no { color: #c0392b !important; }
+            tr.st-Returned::before { background: #c0392b !important; }
+            tr.st-PDC td, tr.st-PDC span, tr.st-PDC .mob-chq-no { color: #f39c12 !important; }
+            tr.st-PDC::before { background: #f39c12 !important; }
+
+            td { display: block; border: none; padding: 0; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 24px; text-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+            
+            /* Mobile Columns Layout */
+            tbody tr:not(.date-header) td:nth-child(1) { display: flex !important; flex-direction: column; justify-content: center; line-height: 1.2; }
+            .main-date { font-size: 12px; font-weight: 600; opacity: 0.9; }
+            .mob-sub-date { font-size: 9px; font-weight: normal; color: #555; margin-top: 1px; font-style: italic; opacity: 0.7; text-shadow: none; }
+
+            /* Web Column 2 is Clear Date - Hide on Mobile */
+            tbody tr:not(.date-header) td:nth-child(2) { display: none; }
+
+            /* Mobile Column 2 is now Index 3 (Party) */
+            tbody tr:not(.date-header) td:nth-child(3) { font-size: 13px; font-weight: 800; letter-spacing: 0.3px; color: #2c3e50; text-shadow: 1px 1px 0px rgba(200,200,200,0.5); display: flex; flex-direction: column; justify-content: center; line-height: 1.2; }
+            .mob-station { display: block !important; font-size: 9px !important; font-weight: normal; opacity: 0.8; margin-top: 1px; color: #444 !important; text-shadow: none; }
+
+            tbody tr:not(.date-header) td:nth-child(4) { display: none; } /* Station */
+            tbody tr:not(.date-header) td:nth-child(5) { display: none; } /* Chq */
+            tbody tr:not(.date-header) td:nth-child(6) { display: none; } /* Status - New Web Col */
+            
+            /* Mobile Column 3 is now Index 7 (Amount) */
+            tbody tr:not(.date-header) td:nth-child(7) { text-align: right; display: flex !important; flex-direction: column; justify-content: center; align-items: flex-end; line-height: 1.2; }
+            .main-amt { font-size: 14px; font-weight: 900; color: #000; text-shadow: 2px 2px 0px rgba(200,200,200,0.5), 3px 3px 2px rgba(0,0,0,0.1); }
+            .mob-sub-chq { font-size: 10px; font-weight: 700; color: #222; margin-top: 2px; font-family: 'Courier New', monospace; opacity: 1; text-shadow: 1px 1px 0 rgba(255,255,255,0.8); }
+
+            tfoot { position: fixed; bottom: 0; left: 0; width: 100%; background: #222; color: #fff; z-index: 500; display: flex; justify-content: space-between; padding: 8px 15px; box-sizing: border-box; border-top: 1px solid #444; }
+            tfoot td { display: block; width: auto; background: transparent; border: none; padding:0; color: #fff; box-shadow: none; border-radius: 0; }
+            
+            .btn-add { position: fixed; bottom: 50px; right: 20px; width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #34495e, #2c3e50); box-shadow: 0 5px 15px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; z-index: 600; }
+            .btn-add::after { content: '+'; font-size: 26px; color: white; font-weight: 300; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+            
+            /* MOBILE POPUP - UNCHANGED */
+            .modal-content { width: 90%; margin: 20% auto; padding: 20px; border-radius: 12px; }
+            #entryModal { background-color: rgba(0,0,0,0.05); }
+            #entryModal .modal-content {
+                position: fixed; left: 0; top: 0; bottom: 45px; height: auto; 
+                width: 220px; max-width: 60%;
+                margin: 0; padding: 10px; background: #fff;
+                border-radius: 0 15px 15px 0;
+                box-shadow: 5px 0 20px rgba(0,0,0,0.2), inset -1px 0 5px rgba(0,0,0,0.05);
+                border: 1px solid #ddd; border-left: none;
+                border-top: none;
+                overflow-y: auto; animation: slideInLeft 0.3s ease-out;
+                z-index: auto; /* Reset desktop z-index override */
+            }
+            @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            #entryModal h3 { font-size: 13px; margin: 0 0 10px 0; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #2c3e50; }
+            #entryModal label { font-size: 10px; margin-bottom: 2px; color: #777; display: block; }
+            #entryModal input, #entryModal select { padding: 4px 5px; font-size: 11px; height: 28px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; box-shadow: none; background: #fff; }
+            #entryModal .form-group { margin-bottom: 0; }
+            #entryModal .close-btn { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; line-height: 22px; text-align: center; background: #f5f5f5; border-radius: 50%; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            #entryModal button { padding: 5px 15px; font-size: 10px; margin-top: 5px; box-shadow: none; transform: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <div id="loginBox">
+        <h2>Security Check</h2>
+        <input type="password" id="passInput" placeholder="Enter Password" inputmode="numeric" pattern="[0-9]*" onkeydown="checkEnter(event)">
+        <button id="unlockBtn" onclick="checkPass()">Unlock</button>
+    </div>
+</div>
+
+<div id="toast">Saved!</div>
+
+<div class="container">
+    <div class="mob-header-bar"><h2>Chandna Trading Company</h2><span>V100</span></div>
+    <div class="left-sidebar">
+        <div class="company-title">Chandna Trading Co.</div>
+        <div class="dashboard">
+            <div class="card bg-blue" onclick="filterTable('In Bank')"><h3 id="totalInBank">0</h3><p>Bank</p></div>
+            <div class="card bg-green" onclick="filterTable('Cleared')"><h3 id="totalCleared">0</h3><p>Clear</p></div>
+            <div class="card bg-red" onclick="filterTable('Returned')"><h3 id="totalReturned">0</h3><p>Ret</p></div>
+            <div class="card bg-orange" onclick="filterTable('PDC')"><h3 id="totalPDC">0</h3><p>PDC</p></div>
+        </div>
+        <div style="margin-top:auto;" class="desktop-btns">
+            <button class="btn-action btn-backup" onclick="downloadBackup()">Backup</button>
+            <button class="btn-action btn-restore" onclick="triggerRestore()">Restore</button>
+        </div>
+    </div>
+
+    <div class="middle-panel">
+        <div class="action-bar">
+            <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search..." onkeyup="searchData()">
+            </div>
+            <div class="action-buttons">
+                <button class="btn-top btn-reset" id="resetBtn" onclick="resetFilter()" style="display:none;">All</button>
+                <button class="btn-top btn-add" onclick="openModal()">New</button>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table id="chequeTable">
+                <thead>
+                    <tr>
+                        <th style="width:15%" onclick="sortTable('depDate')">Dep. Date</th>
+                        <th style="width:15%" onclick="sortTable('clearDate')" class="web-col">Cleared Date</th>
+                        <th style="width:25%" onclick="sortTable('partyName')">Party Name</th>
+                        <th style="width:15%" onclick="sortTable('station')">Station</th>
+                        <th style="width:10%" onclick="sortTable('chqNo')">Chq No</th>
+                        <th style="width:10%" onclick="sortTable('remark')" class="web-col">Status</th>
+                        <th style="text-align:right; width:15%" onclick="sortTable('amount')">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+                <tfoot><tr><td colspan="6" style="text-align: right;">TOTAL:</td><td id="footerTotal" style="text-align:right;">0</td></tr></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="right-preview">
+        </div>
+</div>
+
+<input type="file" id="restoreInput" style="display: none;" onchange="restoreBackup(event)">
+
+<div id="entryModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h3 id="modalTitle" style="margin:0;">Details <span id="bulkBadge">BULK ON</span></h3>
+        <input type="hidden" id="editIndex">
+        <datalist id="partySuggestions"></datalist><datalist id="bankSuggestions"></datalist>
+        <div class="form-grid" id="modalForm">
+            <div class="date-wrapper form-group show-in-bulk"><label>Dep. Date (DDMM)</label><input type="tel" id="depDate" class="modal-input" onblur="magicDate(this)" onkeydown="jump(event, 'depDate', 'chqDate')" onfocus="this.select()"><i class="fas fa-calendar-alt cal-icon"></i><input type="date" class="hidden-date-picker" onchange="syncDate(this, 'depDate')"></div>
+            <div class="date-wrapper form-group"><label>Chq. Date (DDMM)</label><input type="tel" id="chqDate" class="modal-input" onblur="magicDate(this)" onkeydown="jump(event, 'chqDate', 'clearDate')" onfocus="this.select()"><i class="fas fa-calendar-alt cal-icon"></i><input type="date" class="hidden-date-picker" onchange="syncDate(this, 'chqDate')"></div>
+            <div class="date-wrapper form-group full-width"><label>Clear/Return Date</label><input type="tel" id="clearDate" class="modal-input" onblur="magicDate(this)" onkeydown="jump(event, 'clearDate', 'partyName')" onfocus="this.select()"><i class="fas fa-calendar-alt cal-icon"></i><input type="date" class="hidden-date-picker" onchange="syncDate(this, 'clearDate')"></div>
+            <div class="full-width form-group"><label>Party Name</label><input type="text" id="partyName" list="partySuggestions" class="modal-input" oninput="autoFillStation()" onkeydown="jump(event, 'partyName', 'station')" onfocus="this.select()"></div>
+            <div class="form-group"><label>Station</label><input type="text" id="station" class="modal-input" onkeydown="jump(event, 'station', 'amount')" onfocus="this.select()"></div>
+            <div class="form-group show-in-bulk"><label>Amount</label><input type="number" id="amount" class="modal-input" onkeydown="jump(event, 'amount', 'bankName')" onfocus="this.select()"></div>
+            <div class="form-group"><label>Bank</label><input type="text" id="bankName" list="bankSuggestions" class="modal-input" onkeydown="jump(event, 'bankName', 'chqNo')" onfocus="this.select()"></div>
+            <div class="form-group show-in-bulk"><label>Chq No</label><input type="text" id="chqNo" class="modal-input" onkeydown="jump(event, 'chqNo', 'remark')" onfocus="this.select()"></div>
+            <div class="full-width form-group"><label>Status</label><select id="remark" class="modal-input" onkeydown="jump(event, 'remark', 'desc1')" onfocus="this.select()"><option>In Bank</option><option>Cleared</option><option>Returned</option><option>PDC</option></select></div>
+            <div class="form-group"><label>D1</label><input type="text" id="desc1" class="modal-input" onkeydown="jump(event, 'desc1', 'desc2')" onfocus="this.select()"></div>
+            <div class="form-group"><label>D2</label><input type="text" id="desc2" class="modal-input" onkeydown="jump(event, 'desc2', 'save')" onfocus="this.select()"></div>
+        </div>
+        <div style="margin-top:20px; text-align:right;">
+            <button type="button" class="btn-delete" onclick="deleteCurrentEntry()">Delete</button>
+            <button type="button" class="btn-save" onclick="saveData(isBulkMode)">Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="bulkModal" class="modal">
+    <div class="modal-content bulk-modal">
+        <span class="close-btn" onclick="closeModal('bulkModal')">&times;</span>
+        <h3>Bulk Import</h3>
+        <textarea id="excelInput" class="paste-section" placeholder="Paste Excel Data..."></textarea>
+        <button type="button" onclick="parseExcelData()" style="background:#34495e; color:white; margin:10px 0;">Process</button>
+        <div class="bulk-container"><table class="bulk-table"><tbody id="bulkBody"></tbody></table></div>
+        <button type="button" class="btn-save" onclick="saveBulkData()">Save All</button>
+    </div>
+</div>
+
+<script>
+    let chequeList = [], currentViewData = [], isBulkMode = false, selectedIndex = -1;
+    let lastEnteredDate = new Date().toISOString().split('T')[0];
+    let sortConfig = { key: 'depDate', direction: 'desc' }; // Default sort
+    let currentFilter = 'All', searchTerm = '';
+    let keyboardNavIndex = -1;
+
+    // --- FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyAjqbqKD0zUKRKCvZcbsp08se35mz-C1BE",
+        authDomain: "pdc-chq.firebaseapp.com",
+        databaseURL: "https://pdc-chq-default-rtdb.firebaseio.com",
+        projectId: "pdc-chq",
+        storageBucket: "pdc-chq.firebasestorage.app",
+        messagingSenderId: "766702992698",
+        appId: "1:766702992698:web:2789a4e35399e7a4226b2b"
+    };
+
+    let db;
+    try {
+        if(typeof firebase !== "undefined") {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            console.log("Connected to Cloud");
+            db.ref('chequeData').on('value', (snapshot) => {
+                const cloudData = snapshot.val();
+                if(cloudData) {
+                    chequeList = cloudData;
+                    localStorage.setItem('chequeDataFinal', JSON.stringify(chequeList));
+                    refreshUI();
+                }
+            });
+        }
+    } catch(e) { console.error("Firebase Error:", e); }
+
+    function autoBackupToCloud() {
+        if (db && chequeList.length > 0) {
+            db.ref('chequeData').set(chequeList).catch(e => console.error(e));
+        }
+    }
+
+    function checkPass() {
+        let pass = document.getElementById('passInput').value;
+        if(pass === '55165032') {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.querySelector('.container').style.display = 'grid'; 
+            document.getElementById('passInput').value = '';
+            refreshUI();
+        } else {
+            alert('Incorrect Password');
+            document.getElementById('passInput').value = '';
+        }
+    }
+    function checkEnter(e) { if(e.key === 'Enter') checkPass(); }
+    
+    window.onload = function() { 
+        history.replaceState({filter: 'All'}, null, "");
+        document.getElementById('passInput').focus();
+        try { let s = localStorage.getItem('chequeDataFinal'); if(s) chequeList = JSON.parse(s); } catch(e) { chequeList = []; }
+        if(chequeList.length > 0) lastEnteredDate = chequeList[chequeList.length-1].depDate || lastEnteredDate;
+    };
+
+    window.onpopstate = function(e) {
+        if (document.getElementById('entryModal').style.display === 'block') { _closeModalInternal(); return; }
+        let targetFilter = e.state ? (e.state.filter || 'All') : 'All';
+        if (currentFilter !== targetFilter) { _applyFilterUI(targetFilter); }
+    };
+
+    function jump(e, currentId, nextId) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if(currentId.includes('Date')) magicDate(document.getElementById(currentId));
+            if (e.shiftKey) { isBulkMode = true; saveData(true); return; }
+            if(currentId === 'depDate') {
+                let val = document.getElementById('depDate').value;
+                if(val) { document.getElementById('chqDate').value = val; } 
+                // REMOVED THE SKIP TO PARTYNAME HERE
+            }
+            if(nextId === 'save') { saveData(isBulkMode); } else {
+                if(isBulkMode) {
+                    if(currentId === 'depDate') { document.getElementById('amount').focus(); return; }
+                    if(currentId === 'amount') { document.getElementById('chqNo').focus(); return; }
+                    if(currentId === 'chqNo') { saveData(true); return; }
+                }
+                document.getElementById(nextId).focus();
+            }
+        }
+    }
+
+    function saveData(bulk) {
+        let idx = parseInt(document.getElementById('editIndex').value);
+        magicDate(document.getElementById('depDate'));
+        magicDate(document.getElementById('chqDate'));
+        magicDate(document.getElementById('clearDate'));
+        let entry = {};
+        ['depDate','chqDate','clearDate','partyName','amount','bankName','chqNo','station','remark','desc1','desc2'].forEach(id => {
+            let el = document.getElementById(id); entry[id] = el ? el.value : '';
+        });
+        entry.amount = parseFloat(entry.amount) || 0;
+        if(!entry.partyName || !entry.amount) { alert("Party & Amount Required!"); return; }
+        if(entry.depDate) lastEnteredDate = entry.depDate;
+        let oldChq = entry.chqNo;
+        if(idx === -1) chequeList.push(entry); else chequeList[idx] = entry;
+        saveToLocal();
+        if(bulk && idx === -1) { 
+            isBulkMode = true;
+            document.getElementById('modalForm').classList.add('bulk-view');
+            document.getElementById('bulkBadge').style.display = 'inline-block';
+            let t = document.getElementById("toast"); t.className="show"; setTimeout(()=>{t.className=""}, 2000);
+            document.getElementById('editIndex').value = -1;
+            document.getElementById('depDate').value = ''; 
+            document.getElementById('chqDate').value = ''; 
+            document.getElementById('clearDate').value = ''; 
+            document.getElementById('amount').value = ''; 
+            if(oldChq && !isNaN(oldChq)) document.getElementById('chqNo').value = parseInt(oldChq) + 1;
+            else document.getElementById('chqNo').value = '';
+            setTimeout(() => { let d = document.getElementById('depDate'); d.focus(); d.select(); }, 50);
+        } else { closeModal(); }
+    }
+
+    function openModal(isEdit=false, rawIndex=-1) {
+        history.pushState({filter: currentFilter, modal: true}, null, "");
+        _openModalInternal(isEdit, rawIndex);
+    }
+
+    function _openModalInternal(isEdit, rawIndex) {
+        document.getElementById('entryModal').style.display = 'block';
+        document.getElementById('modalTitle').childNodes[0].nodeValue = isEdit ? "Edit " : "New ";
+        isBulkMode = false;
+        document.getElementById('modalForm').classList.remove('bulk-view');
+        document.getElementById('bulkBadge').style.display = 'none';
+        updateSuggestions();
+        if(isEdit) {
+            let item = currentViewData[rawIndex];
+            let realIndex = chequeList.indexOf(item);
+            document.getElementById('editIndex').value = realIndex;
+            ['depDate','chqDate','clearDate','partyName','amount','bankName','chqNo','station','remark','desc1','desc2'].forEach(id => {
+                let el = document.getElementById(id); if(el) el.value = item[id] || '';
+            });
+        } else {
+            document.getElementById('editIndex').value = -1;
+            let inputs = document.querySelectorAll('.modal-input');
+            inputs.forEach(i => i.value = '');
+            document.getElementById('remark').value = 'In Bank';
+            document.getElementById('depDate').value = '';
+        }
+        // MODIFIED: Focus AND Select
+        setTimeout(() => { let d = document.getElementById('depDate'); d.focus(); d.select(); }, 100);
+    }
+
+    function closeModal() { history.back(); }
+    function _closeModalInternal() {
+        document.getElementById('entryModal').style.display = 'none';
+        isBulkMode = false;
+        document.getElementById('modalForm').classList.remove('bulk-view');
+    }
+
+    function magicDate(input) {
+        let val = input.value.trim();
+        if(!val || val.match(/^\d{4}-\d{2}-\d{2}$/)) return;
+        let clean = val.replace(/[^0-9]/g, '');
+        let d, m;
+        if (clean.length === 4) { d = parseInt(clean.substring(0,2)); m = parseInt(clean.substring(2,4)); }
+        else if (clean.length === 3) { d = parseInt(clean.substring(0,1)); m = parseInt(clean.substring(1,3)); }
+        else if (clean.length <= 2) { d = parseInt(clean); m = new Date().getMonth() + 1; }
+        else return;
+        let y = new Date().getFullYear();
+        let currM = new Date().getMonth() + 1;
+        if (currM >= 10 && m <= 3) y += 1; else if (currM <= 3 && m >= 10) y -= 1;
+        input.value = `${y}-${m.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+        if(input.id === 'depDate') document.getElementById('chqDate').value = input.value;
+    }
+    
+    function syncDate(picker, targetId) { 
+        document.getElementById(targetId).value = picker.value; 
+        if(targetId === 'depDate') document.getElementById('chqDate').value = picker.value;
+    }
+
+    document.onkeydown = function(e) {
+        if (document.getElementById('entryModal').style.display === 'block') {
+            if (e.key === "Escape") closeModal();
+            if (e.shiftKey && e.key === 'Enter') { e.preventDefault(); isBulkMode = true; saveData(true); }
+            if (e.ctrlKey && e.key === 'Enter') { saveData(false); }
+            return;
+        }
+        if (e.key === "Escape") { closeModal(); resetFilter(); keyboardNavIndex = -1; return; }
+        if (e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); openModal(); return; }
+        if (e.shiftKey && e.key.toLowerCase() === 'd') { 
+            e.preventDefault(); 
+            document.body.classList.toggle('show-web-headers'); 
+            return; 
+        }
+        if (e.altKey && e.key.toLowerCase() === 's') { e.preventDefault(); document.getElementById('searchInput').focus(); return; }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentViewData.length === 0) return;
+            if (e.key === 'ArrowDown') { keyboardNavIndex++; if (keyboardNavIndex >= currentViewData.length) keyboardNavIndex = currentViewData.length - 1; } 
+            else { keyboardNavIndex--; if (keyboardNavIndex < 0) keyboardNavIndex = 0; }
+            selectEntry(keyboardNavIndex, true);
+        }
+        if (e.key === 'Enter' && keyboardNavIndex !== -1) { e.preventDefault(); openModal(true, keyboardNavIndex); }
+    };
+
+    function autoFillStation() {
+        let v = document.getElementById('partyName').value.toLowerCase();
+        let f = chequeList.find(i => i.partyName.toLowerCase()===v);
+        if(f && f.station) document.getElementById('station').value = f.station;
+    }
+    
+    function updateSuggestions() {
+        let p = new Set(), b = new Set();
+        chequeList.forEach(i => { if(i.partyName) p.add(i.partyName + "|" + i.station); if(i.bankName) b.add(i.bankName); });
+        let pl = document.getElementById('partySuggestions'); pl.innerHTML='';
+        p.forEach(str => { let parts = str.split('|'); let o=document.createElement('option'); o.value=parts[0]; o.label=parts[1] !== "undefined" ? parts[1] : ""; pl.appendChild(o); });
+        let bl = document.getElementById('bankSuggestions'); bl.innerHTML='';
+        b.forEach(v => { let o=document.createElement('option'); o.value=v; bl.appendChild(o); });
+    }
+
+    function refreshUI() {
+        let tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
+        let sum = 0;
+        let search = document.getElementById('searchInput').value.toLowerCase();
+        
+        let cardTotals = { 'In Bank':0, 'Cleared':0, 'Returned':0, 'PDC':0 };
+        chequeList.forEach(i => { if(cardTotals[i.remark] !== undefined) cardTotals[i.remark] += i.amount; });
+        ['In Bank','Cleared','Returned','PDC'].forEach(k => document.getElementById('total'+k.replace(' ','')).innerText = cardTotals[k].toLocaleString());
+
+        let filtered = chequeList.filter(i => {
+            if(currentFilter !== 'All' && i.remark !== currentFilter) return false;
+            if(search && !Object.values(i).join(' ').toLowerCase().includes(search)) return false;
+            return true;
+        });
+
+        // Use Sort Config for Sorting
+        if (sortConfig.key) {
+            currentViewData = filtered.sort((a, b) => {
+                let valA = a[sortConfig.key] ? a[sortConfig.key].toString().toLowerCase() : '';
+                let valB = b[sortConfig.key] ? b[sortConfig.key].toString().toLowerCase() : '';
+                
+                // Number Sorting for Amount & ChqNo
+                if (sortConfig.key === 'amount' || sortConfig.key === 'chqNo') {
+                    valA = parseFloat(a[sortConfig.key]) || 0;
+                    valB = parseFloat(b[sortConfig.key]) || 0;
+                }
+
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        } else {
+            // Fallback (Latest Date First)
+            currentViewData = filtered.sort((a,b) => (a.depDate < b.depDate ? 1 : -1));
+        }
+
+        let lastDateRendered = null;
+
+        currentViewData.forEach((item, index) => {
+            sum += item.amount;
+            if (item.depDate !== lastDateRendered) {
+                let dateTotal = currentViewData.filter(i => i.depDate === item.depDate).reduce((acc, cur) => acc + cur.amount, 0);
+                tbody.innerHTML += `<tr class="date-header"><td colspan="7">${formatDispDate(item.depDate)} / <span>${dateTotal.toLocaleString()}</span></td></tr>`;
+                lastDateRendered = item.depDate;
+            }
+            
+            let stClass = 'st-' + item.remark.replace(/\s/g, '');
+            
+            tbody.innerHTML += `<tr class="${stClass}" id="row-${index}" onclick="selectEntry(${index})" ondblclick="openModal(true, ${index})">
+                <td>
+                    <span class="main-date">${formatDispDate(item.depDate)}</span>
+                    <span class="mob-sub-date">${item.clearDate ? formatDispDate(item.clearDate) : '-'}</span>
+                </td>
+                <td class="web-only">${item.clearDate ? formatDispDate(item.clearDate) : '-'}</td>
+                <td style="font-weight:600;">${item.partyName}<span class="mob-station">${item.station}</span></td>
+                <td><span class="web-station">${item.station||''}</span><span class="mob-chq-no">${item.chqNo||''}</span></td>
+                <td class="web-only">${item.chqNo||'-'}</td>
+                <td class="web-only">${item.remark}</td>
+                <td style="text-align:right;">
+                    <span class="main-amt">${item.amount.toLocaleString()}</span>
+                    <span class="mob-sub-chq">#${item.chqNo||'-'}</span>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('footerTotal').innerText = sum.toLocaleString();
+    }
+
+    function selectEntry(index, scroll = false) {
+        if(window.innerWidth <= 768) { openModal(true, index); return; }
+        
+        selectedIndex = index; keyboardNavIndex = index; 
+        document.querySelectorAll('tr').forEach(tr => tr.classList.remove('selected-row'));
+        let r = document.getElementById('row-' + index);
+        if(r) { r.classList.add('selected-row'); if(scroll) r.scrollIntoView({ block: 'nearest' }); }
+        let item = currentViewData[index];
+        // Preview removed in web view, so no action needed here other than highlight
+    }
+    
+    function editSelected() { if(selectedIndex > -1) openModal(true, selectedIndex); }
+    function formatDispDate(s) { if(!s) return '-'; let p=s.split('-'); return `${p[2]}-${p[1]}-${p[0]}`; }
+    
+    function saveToLocal() { localStorage.setItem('chequeDataFinal', JSON.stringify(chequeList)); autoBackupToCloud(); refreshUI(); }
+    function deleteCurrentEntry() { if(confirm("Delete?")) { chequeList.splice(document.getElementById('editIndex').value, 1); saveToLocal(); closeModal(); } }
+    function downloadBackup() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chequeList)); a.download = "Backup.json"; a.click(); }
+    function triggerRestore() { document.getElementById('restoreInput').click(); }
+    function restoreBackup(e) { const r = new FileReader(); r.onload = function(e) { try{ chequeList=JSON.parse(e.target.result); saveToLocal(); alert("Restored!"); }catch(x){alert("Error");} }; r.readAsText(e.target.files[0]); }
+    function searchData() { refreshUI(); }
+    
+    function filterTable(status) { history.pushState({filter: status}, null, ""); _applyFilterUI(status); }
+    function _applyFilterUI(status) { currentFilter = status; document.getElementById('searchInput').value = ''; document.getElementById('resetBtn').style.display = 'block'; refreshUI(); }
+    function resetFilter() { history.back(); }
+
+    function sortTable(key) { if(sortConfig.key===key) sortConfig.direction=sortConfig.direction==='asc'?'desc':'asc'; else {sortConfig.key=key; sortConfig.direction='asc';} refreshUI(); }
+    function openBulkModal() { document.getElementById('bulkModal').style.display='block'; }
+    function parseExcelData() { let rows = document.getElementById('excelInput').value.split('\n'); let html = ''; rows.forEach(r => { let c = r.split('\t'); if(c.length>2) html += `<tr><td><input value="${c[0]}"></td><td><input value="${c[1]}"></td><td><input value="${c[2]}"></td><td><input value="${c[3]}"></td><td><input value="${c[4]}"></td><td><input value="${c[5]}"></td><td><input value="${c[6]}"></td><td><input value="${c[7]}"></td></tr>`; }); document.getElementById('bulkBody').innerHTML = html; }
+    function saveBulkData() { let rows = document.querySelectorAll('#bulkBody tr'); let count = 0; rows.forEach(row => { let p = row.querySelector('.b-party').value; let a = row.querySelector('.b-amt').value; if(p && a) { chequeList.push({ depDate: row.querySelector('.b-dd').value, chqDate: row.querySelector('.b-cd').value, clearDate: row.querySelector('.b-cld').value, partyName: p, station: row.querySelector('.b-stn').value, amount: parseFloat(a) || 0, bankName: row.querySelector('.b-bank').value, chqNo: row.querySelector('.b-chq').value, remark: row.querySelector('.b-stat').value, desc1: '', desc2: '' }); count++; } }); if(count > 0) { saveToLocal(); document.getElementById('bulkModal').style.display='none'; alert(count + " Records Imported!"); } }
+</script>
+</body>
+</html>
