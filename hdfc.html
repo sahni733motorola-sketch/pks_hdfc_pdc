@@ -261,7 +261,7 @@
 </head>
 <body>
 
-<a href="index.html" class="home-btn" style="position: fixed; top: 10px; left: 10px; background-color: #333; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-family: sans-serif; font-weight: bold; font-size: 14px; z-index: 9999; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+<a href="index.html" class="home-btn" style="position: fixed; top: 10px; left: 10px; background-color: #333; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-family: sans-serif; font-weight: bold; font-size: 14px; z-index: 10001; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
     🏠 Home
 </a>
 <div id="password-overlay">
@@ -1260,12 +1260,26 @@
         inputIds.forEach((id, index) => { const el = document.getElementById(id); if(!el) return; el.addEventListener('keydown', function(e) { if(e.key === "Enter") { e.preventDefault(); if(index === inputIds.length - 1) saveFunc(); else document.getElementById(inputIds[index+1]).focus(); } }); });
     }
 
+    // ==========================================
+    // 2. AUTO-LOGIN / SSO LOGIC (UPDATED)
+    // ==========================================
     window.onload = function() { 
-        addRow(); document.getElementById('passInput').focus();
+        // 1. SSO Check: If logged in from Index, SKIP Password
+        if(sessionStorage.getItem('office_login') === 'true') {
+            const overlay = document.getElementById('password-overlay');
+            if(overlay) overlay.style.display = 'none';
+        } else {
+            // Not logged in -> Focus on local password input
+            document.getElementById('passInput').focus();
+        }
+
+        // 2. Standard Init
+        addRow();
         if(document.querySelector('.btn-bulk-print')) document.querySelector('.btn-bulk-print').style.visibility = 'visible';
         setupEnterNavigation('partyModal', ['singlePartyName', 'singlePartyAcc', 'singlePartyIfsc', 'singlePartyBank', 'singlePartyStation'], saveSinglePartyOnline);
         setupEnterNavigation('remitterModal', ['newRemName', 'newRemHdfc', 'newRemPnb', 'newRemMob'], saveRemitterOnline);
-        const remitterInput = document.getElementById('remitter-input'); const commonDateInput = document.getElementById('commonDate');
+        const remitterInput = document.getElementById('remitter-input'); 
+        const commonDateInput = document.getElementById('commonDate');
         if(remitterInput) { remitterInput.addEventListener('keydown', function(e) { if(e.key === "Enter") { e.preventDefault(); if(commonDateInput) commonDateInput.focus(); } }); }
         if(commonDateInput) { commonDateInput.addEventListener('keydown', function(e) { if(e.key === "Enter") { e.preventDefault(); const firstPartyInput = document.getElementById('party-1'); if(firstPartyInput) firstPartyInput.focus(); } }); }
     };
