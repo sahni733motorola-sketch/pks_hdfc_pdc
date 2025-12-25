@@ -356,7 +356,7 @@
 </head>
 <body>
 
-<a href="index.html" style="position: fixed; top: 10px; left: 10px; background-color: #333; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-family: sans-serif; font-weight: bold; font-size: 14px; z-index: 10001; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+<a href="index.html" class="home-btn" style="position: fixed; top: 10px; left: 10px; background-color: #333; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-family: sans-serif; font-weight: bold; font-size: 14px; z-index: 10001; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
     🏠 Home
 </a>
 <div id="loginScreen">
@@ -514,8 +514,20 @@
     function checkEnter(e) { if(e.key === 'Enter') checkPass(); }
     
     window.onload = function() { 
+        // ==========================================
+        // 1. AUTO-LOGIN / SSO LOGIC (UPDATED)
+        // ==========================================
+        if(sessionStorage.getItem('office_login') === 'true') {
+             // Already Logged in via Index
+             document.getElementById('loginScreen').style.display = 'none';
+             document.querySelector('.container').style.display = 'grid';
+             refreshUI();
+        } else {
+             // Not logged in -> Focus on local password input
+             document.getElementById('passInput').focus();
+        }
+
         history.replaceState({filter: 'All'}, null, "");
-        document.getElementById('passInput').focus();
         try { let s = localStorage.getItem('chequeDataFinal'); if(s) chequeList = JSON.parse(s); } catch(e) { chequeList = []; }
         if(chequeList.length > 0) lastEnteredDate = chequeList[chequeList.length-1].depDate || lastEnteredDate;
     };
