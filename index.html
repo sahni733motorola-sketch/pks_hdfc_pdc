@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Office Manager</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #e9ecef;
+            margin: 0;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 40px;
+            font-size: 24px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 90%;
+            max-width: 400px;
+        }
+        .btn {
+            display: block;
+            padding: 20px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* बटन के रंग (Colors) */
+        .btn-hdfc { background-color: #004c8f; } /* HDFC Blue */
+        .btn-pdc { background-color: #dc3545; }  /* Red */
+        .btn-courier { background-color: #28a745; } /* Green */
+
+    </style>
+</head>
+<body>
+
+    <h1>Office Work Launcher</h1>
+
+    <div class="container">
+        <a href="hdfc.html" class="btn btn-hdfc">🔵 Open HDFC Manager</a>
+
+        <a href="pdc.html" class="btn btn-pdc">🔴 Open PDC Manager</a>
+
+        <a href="courier.html" class="btn btn-courier">🟢 Open Courier Manager</a>
+    </div>
+
+</body>
+</html>
