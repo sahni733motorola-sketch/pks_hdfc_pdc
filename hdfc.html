@@ -176,7 +176,8 @@
         @media print {
             @page { size: A4 portrait; margin: 0; }
             html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; overflow: hidden !important; background-color: white !important; }
-            .left-panel, .manager-container, #password-overlay, .modal, .btn-action, .manager-header { display: none !important; }
+            /* ADDED .home-btn TO HIDDEN ELEMENTS BELOW */
+            .left-panel, .manager-container, #password-overlay, .modal, .btn-action, .manager-header, .home-btn { display: none !important; }
             body:not(.printing-bulk) .right-panel { display: block !important; width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; background-color: white !important; }
             #bulk-print-container { display: none !important; }
             .page.hidden-form { display: none !important; }
@@ -260,6 +261,9 @@
 </head>
 <body>
 
+<a href="index.html" class="home-btn" style="position: fixed; top: 10px; left: 10px; background-color: #333; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-family: sans-serif; font-weight: bold; font-size: 14px; z-index: 9999; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+    🏠 Home
+</a>
 <div id="password-overlay">
     <div class="password-card">
         <h2>🔒 Secure Access</h2>
