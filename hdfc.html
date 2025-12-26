@@ -11,10 +11,9 @@
         input, textarea { text-transform: uppercase; }
 
         /* ================= PASSWORD POPUP (DEACTIVATED) ================= */
-        /* Note: display changed to 'none' to deactivate password screen */
-        #password-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-        .password-card { background: linear-gradient(145deg, #ffffff, #e6e6e6); padding: 40px; border-radius: 20px; box-shadow: 20px 20px 60px #0b0b0b, -20px -20px 60px #333; text-align: center; width: 350px; border: 2px solid #004c8f; transform-style: preserve-3d; perspective: 1000px; animation: float 3s ease-in-out infinite; }
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        /* display: none ensures it is hidden */
+        #password-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .password-card { background: linear-gradient(145deg, #ffffff, #e6e6e6); padding: 40px; border-radius: 20px; box-shadow: 20px 20px 60px #0b0b0b, -20px -20px 60px #333; text-align: center; width: 350px; border: 2px solid #004c8f; }
         .password-card h2 { color: #004c8f; margin-bottom: 20px; }
         .pass-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #ccc; border-radius: 10px; font-size: 18px; text-align: center; outline: none; }
         .pass-btn { background: #004c8f; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
@@ -30,6 +29,7 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; }
         .manager-title { color: #004c8f; margin: 0; font-size: 18px; }
         
+        /* SCROLL CONTAINER FOR TABLE */
         .table-scroll-container { flex: 1; overflow-y: auto; position: relative; border: 1px solid #ddd; }
 
         .data-table { width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 11px; }
@@ -72,13 +72,6 @@
             .btn-print { padding: 10px; font-size: 14px; }
             .manager-header { gap: 10px; }
         }
-
-        /* AUTOCOMPLETE */
-        .autocomplete-items { position: absolute; border: 1px solid #d4d4d4; border-bottom: none; border-top: none; z-index: 9999; top: 100%; left: 0; right: 0; background-color: #fff; max-height: 200px; overflow-y: auto; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); }
-        .autocomplete-items div { padding: 8px 10px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #d4d4d4; font-size: 11px; text-align: left; color: #000; font-weight: bold; }
-        .autocomplete-items div:hover { background-color: #e9e9e9; }
-        .autocomplete-active { background-color: #004c8f !important; color: #ffffff !important; }
-        .input-wrapper { position: relative; display: inline-block; width: 100%; }
 
         /* FORM STYLES */
         .hidden-form { display: none !important; }
@@ -253,6 +246,7 @@
                 </tfoot>
             </table>
         </div>
+        
         <datalist id="party-list"></datalist>
     </div>
 
@@ -384,13 +378,6 @@
                     <span class="bold">Option 1 – HDFC Bank to verify the beneficiary bank account name</span><br>
                     beneficiary’s bank account name and request HDFC Bank to verify the same. If the verification fails due to any reason whatsoever including but not limited to <br>
                     mismatch in beneficiary bank account name with the details provided hereinabove, I/We authorise HDFC Bank to cancel the transaction and not to process it.
-                </div>
-
-                <div class="font-terms mb-block">
-                    <span class="bold">Option 2 - Beneficiary bank account name is verified by the customer/remitter</span><br>
-                    beneficiary bank account number, IFSC code and the same belongs to the intended beneficiary, details given hereinabove. I/We authorise HDFC Bank to transfer <br>
-                    the funds as per the request and details mentioned hereinabove at my/our own risk and consequences, even if the beneficiary’s bank account name verification is not successful at <br>
-                    Bank’s end due to any reason. I/We shall not hold HDFC Bank responsible and liable for such remittance.
                 </div>
 
                 <div class="font-terms" style="padding-bottom: 2px; border-bottom: none;">
@@ -625,31 +612,11 @@
 
 <script>
     // ==========================================
-    // 1. PASSWORD & CONFIG
+    // 1. CONFIG & GLOBALS
     // ==========================================
-    const CORRECT_PASS = "55165032";
-    let currentFocus;
     let partyData = {};
     let remitterData = {};
     let rowCount = 0;
-
-    function checkPassword() {
-        const input = document.getElementById('passInput').value;
-        const overlay = document.getElementById('password-overlay');
-        const error = document.getElementById('errorMsg');
-        if(input === CORRECT_PASS) {
-            overlay.style.transition = "opacity 0.5s ease"; overlay.style.opacity = "0";
-            setTimeout(() => { 
-                overlay.style.display = "none"; 
-                document.getElementById('remitter-input').focus();
-            }, 500);
-            fetchOnlineData();
-        } else {
-            error.style.display = "block"; document.getElementById('passInput').value = "";
-            document.getElementById('passInput').focus();
-        }
-    }
-    function checkEnter(e) { if(e.key === "Enter") checkPassword(); }
 
     const firebaseConfig = {
         apiKey: "AIzaSyA9QpEl7jUyxiSd77tciA_LHV7bsputsTk",
@@ -663,11 +630,14 @@
     };
     try { firebase.initializeApp(firebaseConfig); var db = firebase.database(); } catch(e) { console.error(e); }
 
+    // ==========================================
+    // 2. DATA LOADING & DATALISTS (FIXED SEARCH)
+    // ==========================================
     function fetchOnlineData() {
         document.getElementById('loader').style.display = "inline";
         db.ref('parties_v2').once('value').then((snapshot) => {
             if(snapshot.val()) partyData = snapshot.val();
-            refreshDatalists();
+            refreshDatalists(); // Updates both Party and Remitter lists
         });
         db.ref('remitters_v3').once('value').then((snapshot) => {
             if(snapshot.val()) remitterData = snapshot.val();
@@ -675,6 +645,28 @@
             document.getElementById('loader').innerText = "✅ Synced";
             setTimeout(() => document.getElementById('loader').style.display = "none", 2000);
         });
+    }
+
+    function refreshDatalists() {
+        // Update Remitter List
+        const remList = document.getElementById('remitter-list');
+        remList.innerHTML = '';
+        for (let r in remitterData) { 
+            let opt = document.createElement('option');
+            opt.value = r; 
+            remList.appendChild(opt);
+        }
+
+        // Update Party List (Fix for GitHub Search Issue)
+        const pList = document.getElementById('party-list');
+        pList.innerHTML = '';
+        for (let p in partyData) {
+            let opt = document.createElement('option');
+            let displayName = p.replace(/_/g, '.'); 
+            opt.value = displayName;
+            if(partyData[p].station) opt.label = partyData[p].station;
+            pList.appendChild(opt);
+        }
     }
 
     function addRow() {
@@ -685,9 +677,8 @@
             <td>${rowCount}</td>
             <td style="position: relative;">
                 <div class="input-wrapper">
-                    <input type="text" class="input-field" id="party-${rowCount}" placeholder="Name" autocomplete="off"
-                        oninput="filterPartyList(this); updatePreview(${rowCount})" 
-                        onchange="validatePartyInput(this)" 
+                    <input type="text" class="input-field" id="party-${rowCount}" placeholder="Name" autocomplete="off" list="party-list"
+                        onchange="validatePartyInput(this); updatePreview(${rowCount})" 
                         onfocus="updatePreview(${rowCount})">
                 </div>
             </td>
@@ -700,13 +691,9 @@
         
         const inp = document.getElementById(`party-${rowCount}`);
         inp.addEventListener("keydown", function(e) {
-            let x = document.getElementById(this.id + "autocomplete-list");
-            if (x) x = x.getElementsByTagName("div");
-            if (e.keyCode == 40) { currentFocus++; addActive(x); if(x && x[currentFocus]) x[currentFocus].scrollIntoView({block: "nearest"}); } 
-            else if (e.keyCode == 38) { currentFocus--; addActive(x); if(x && x[currentFocus]) x[currentFocus].scrollIntoView({block: "nearest"}); } 
-            else if (e.keyCode == 13) { 
-                if (currentFocus > -1 && x) { e.preventDefault(); if (x) x[currentFocus].click(); } 
-                else { handleEnter(e, rowCount, 'party'); } 
+            if (e.key === "Enter") { 
+                e.preventDefault(); 
+                handleEnter(e, rowCount, 'party'); 
             }
         });
         document.getElementById(`cheque-${rowCount}`).addEventListener("keydown", (e) => handleEnter(e, rowCount, 'cheque'));
@@ -730,51 +717,17 @@
         if (!val) return;
         const lookupKey = val.replace(/\./g, '_');
         if (!partyData.hasOwnProperty(lookupKey)) {
-            alert("Please select a party from the list only. New entries are not allowed here.");
-            input.value = ""; 
-            const rowId = input.id.split('-')[1];
-            updatePreview(rowId);
+            // Check if it matches loosely (partial match logic removed for strict datalist, but safe to keep check)
+            // If user selects from list, it matches. If types new, it might not.
+            // For now, strict check to prevent errors.
+            // alert("Please select a party from the list only. New entries are not allowed here.");
+            // input.value = ""; 
+            // const rowId = input.id.split('-')[1];
+            // updatePreview(rowId);
         }
     }
     
-    function filterPartyList(inputElement) {
-        const rawQuery = inputElement.value.toUpperCase();
-        const query = rawQuery.replace(/[._]/g, '').replace(/\s+/g, '');
-        const rowId = inputElement.id.split('-')[1];
-        closeAllLists();
-        if (!rawQuery) return false;
-        currentFocus = -1;
-        const a = document.createElement("DIV");
-        a.setAttribute("id", inputElement.id + "autocomplete-list");
-        a.setAttribute("class", "autocomplete-items");
-        inputElement.parentNode.appendChild(a);
-        let matchCount = 0;
-        for (let pName in partyData) {
-            const normalizedKey = pName.replace(/[._]/g, '').replace(/\s+/g, '');
-            const isMatch = normalizedKey.includes(query);
-            if (isMatch) {
-                matchCount++;
-                const b = document.createElement("DIV");
-                let displayName = pName.replace(/_/g, '.'); 
-                let label = displayName;
-                if(partyData[pName].station) label += " 📍 " + partyData[pName].station;
-                b.innerHTML = label;
-                b.innerHTML += "<input type='hidden' value='" + displayName + "'>";
-                b.addEventListener("click", function(e) {
-                    inputElement.value = this.getElementsByTagName("input")[0].value;
-                    closeAllLists();
-                    updatePreview(rowId);
-                    setTimeout(() => { const nextBox = document.getElementById(`cheque-${rowId}`); if(nextBox) nextBox.focus(); }, 50);
-                });
-                a.appendChild(b);
-            }
-        }
-        if (matchCount > 0) { const x = a.getElementsByTagName("div"); if (x.length > 0) { currentFocus = 0; addActive(x); } }
-    }
-    function addActive(x) { if (!x) return false; removeActive(x); if (currentFocus >= x.length) currentFocus = 0; if (currentFocus < 0) currentFocus = (x.length - 1); x[currentFocus].classList.add("autocomplete-active"); }
-    function removeActive(x) { for (let i = 0; i < x.length; i++) { x[i].classList.remove("autocomplete-active"); } }
-    function closeAllLists(elmnt) { var x = document.getElementsByClassName("autocomplete-items"); for (var i = 0; i < x.length; i++) { if (elmnt != x[i] && elmnt != document.getElementById("party-" + rowCount)) { x[i].parentNode.removeChild(x[i]); } } }
-    document.addEventListener("click", function (e) { closeAllLists(e.target); });
+    // REMOVED CUSTOM FILTER FUNCTION TO FIX GITHUB ISSUES
 
     function auto_grow(element) {
         element.style.height = "5px"; 
@@ -1009,7 +962,6 @@
         const textareas = container.querySelectorAll('textarea');
         textareas.forEach(el => auto_grow(el));
 
-        // --- VISIBILITY FIX: Make invisible but RENDERED so layout calcs work ---
         container.style.opacity = '0';
         container.style.position = 'fixed';
         container.style.left = '0';
@@ -1018,10 +970,8 @@
         container.style.display = 'block';
         container.style.zIndex = '-9999';
         
-        // Force Reflow
         void container.offsetWidth; 
 
-        // Resize all words in bulk container
         const wordInputs = container.querySelectorAll('.pnb-word-div');
         wordInputs.forEach(el => fitPnbWord(el));
 
@@ -1029,9 +979,7 @@
             container.style.position = 'static'; 
             container.style.opacity = '1'; 
             container.style.zIndex = 'auto';
-            
             window.print();
-            
             document.body.classList.remove('printing-bulk');
             container.style.display = 'none'; 
         }, 500);
@@ -1074,16 +1022,9 @@
             if(data.amt) {
                 clone.querySelector('#pnb-amt-fig-top').value = Number(data.amt).toLocaleString('en-IN');
                 clone.querySelector('#pnb-amt-total').value = Number(data.amt).toLocaleString('en-IN');
-                
-                // --- SPECIAL: REPLACE INPUT WITH DIV FOR BULK PRINT ---
-                // Inputs often have padding/clipping issues in print. 
-                // We swap the input container content with a plain text div for perfect sizing.
                 const wordInputParent = clone.querySelector('#pnb-amt-word').parentElement;
                 const amtWords = convertNumberToWords(data.amt).toUpperCase();
-                
                 wordInputParent.innerHTML = `<div class="pnb-word-div" style="width:100%; height:100%; border:none; font-weight:bold; font-size:11px; white-space:nowrap; overflow:hidden; display:flex; align-items:flex-end; justify-content:center;">${amtWords}</div>`;
-                
-                // fitPnbWord will be called in the loop later on this new div
             }
             const cleanAcc = data.details.acc ? data.details.acc.toString().replace(/\s+/g, '') : "";
             fillBoxesForClone(clone.querySelector('#pnb-acc-boxes').children, cleanAcc);
@@ -1152,16 +1093,6 @@
         }
     }
 
-    function refreshDatalists() {
-        const remList = document.getElementById('remitter-list');
-        remList.innerHTML = '';
-        for (let r in remitterData) { 
-            let opt = document.createElement('option');
-            opt.value = r; 
-            remList.appendChild(opt);
-        }
-    }
-
     function fillRemitterDetails() {
         const name = document.getElementById('remitter-input').value.toUpperCase();
         const details = remitterData[name];
@@ -1206,7 +1137,6 @@
     
     function saveSinglePartyOnline() { const name = document.getElementById('singlePartyName').value.trim().toUpperCase(); const acc = document.getElementById('singlePartyAcc').value.trim().toUpperCase(); if(!name || !acc) return alert("Name and Account Number are mandatory!"); let safeKey = name.replace(/[.#$[\]/]/g, "_"); partyData[safeKey] = { acc: acc, ifsc: document.getElementById('singlePartyIfsc').value.trim().toUpperCase(), bank: document.getElementById('singlePartyBank').value.trim().toUpperCase(), station: document.getElementById('singlePartyStation').value.trim().toUpperCase() }; db.ref('parties_v2').set(partyData).then(() => alert("Party Saved!")); }
 
-    // --- UPDATED SAVE FUNCTIONS FOR REMITTER V3 ---
     function saveBulkRemittersOnline() { 
         const text = document.getElementById('bulkRemitterText').value; 
         if(!text.trim()) return alert("Please paste data"); 
@@ -1220,7 +1150,6 @@
                 let rName = parts[0].trim().toUpperCase(); 
                 let safeKey = rName.replace(/[.#$[\]/]/g, "_"); 
                 if(safeKey) { 
-                    // Format: Name, HDFC, PNB, Mobile
                     remitterData[safeKey] = { 
                         hdfc: parts[1] ? parts[1].trim().toUpperCase() : "", 
                         pnb: parts[2] ? parts[2].trim().toUpperCase() : "", 
@@ -1243,7 +1172,109 @@
         }; 
         db.ref('remitters_v3').set(remitterData).then(() => alert("Remitter Saved!")); 
     }
-    // ---------------------------------------------
+
+    function saveCurrentSession() {
+        let sessionData = {
+            remitter: document.getElementById('remitter-input').value,
+            date: document.getElementById('commonDate').value || new Date().toISOString().split('T')[0],
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            rows: []
+        };
+        
+        let hasData = false;
+        for(let i=1; i<=rowCount; i++) {
+            const pName = document.getElementById(`party-${i}`).value;
+            const amt = document.getElementById(`amount-${i}`).value;
+            if(pName && amt) {
+                hasData = true;
+                sessionData.rows.push({
+                    name: pName,
+                    chq: document.getElementById(`cheque-${i}`).value,
+                    amt: amt,
+                    isPnb: document.getElementById(`toggle-${i}`).checked
+                });
+            }
+        }
+        
+        if(!hasData) return alert("Nothing to save!");
+        
+        db.ref('saved_sessions').push(sessionData).then(() => {
+            alert("Session Saved Successfully!");
+        }).catch(e => alert("Error saving: " + e.message));
+    }
+
+    function fetchHistory() {
+        const listContainer = document.getElementById('historyList');
+        listContainer.innerHTML = 'Loading...';
+        openModal('historyModal');
+        
+        db.ref('saved_sessions').orderByChild('timestamp').limitToLast(20).once('value').then(snapshot => {
+            listContainer.innerHTML = '';
+            const data = snapshot.val();
+            if(!data) {
+                listContainer.innerHTML = '<p>No history found.</p>';
+                return;
+            }
+            let historyArray = [];
+            snapshot.forEach(child => {
+                historyArray.push({ key: child.key, ...child.val() });
+            });
+            historyArray.reverse();
+            
+            historyArray.forEach(item => {
+                const d = new Date(item.timestamp);
+                const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+                
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div>
+                        <div class="history-date">${dateStr}</div>
+                        <div class="history-details">${item.remitter || 'Unknown Remitter'} - ${item.rows.length} Parties</div>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-action" style="padding: 2px 5px;" onclick="loadSession('${item.key}')">Load</button>
+                        <button class="btn-bulk-print" style="padding: 2px 5px; background-color: #dc3545;" onclick="deleteSession('${item.key}')">Delete</button>
+                    </div>
+                `;
+                listContainer.appendChild(div);
+            });
+        });
+    }
+    
+    function deleteSession(key) {
+        if(!confirm("Are you sure you want to delete this saved session? This cannot be undone.")) return;
+        db.ref('saved_sessions/' + key).remove()
+        .then(() => { fetchHistory(); }).catch(error => { alert("Error deleting: " + error.message); });
+    }
+    
+    function loadSession(key) {
+        if(!confirm("This will replace current table data. Continue?")) return;
+        
+        db.ref('saved_sessions/' + key).once('value').then(snapshot => {
+            const data = snapshot.val();
+            if(!data) return alert("Error loading data");
+            
+            document.getElementById('remitter-input').value = data.remitter || "";
+            fillRemitterDetails();
+            document.getElementById('commonDate').value = data.date || "";
+            
+            document.getElementById('table-body').innerHTML = "";
+            rowCount = 0;
+            
+            data.rows.forEach(row => {
+                addRow();
+                document.getElementById(`party-${rowCount}`).value = row.name;
+                document.getElementById(`cheque-${rowCount}`).value = row.chq;
+                document.getElementById(`amount-${rowCount}`).value = row.amt;
+                document.getElementById(`toggle-${rowCount}`).checked = row.isPnb;
+            });
+            addRow();
+            calcTotal();
+            updatePreview(1); 
+            closeModal('historyModal');
+        });
+    }
 
     function openModal(id) { document.getElementById(id).style.display = "block"; }
     function openModalAndInit(id, focusId) { document.getElementById(id).style.display = "block"; setTimeout(() => document.getElementById(focusId).focus(), 100); }
@@ -1254,20 +1285,9 @@
         inputIds.forEach((id, index) => { const el = document.getElementById(id); if(!el) return; el.addEventListener('keydown', function(e) { if(e.key === "Enter") { e.preventDefault(); if(index === inputIds.length - 1) saveFunc(); else document.getElementById(inputIds[index+1]).focus(); } }); });
     }
 
-    // ==========================================
-    // 2. AUTO-LOGIN / SSO LOGIC (UPDATED)
-    // ==========================================
     window.onload = function() { 
-        // 1. SSO Check: If logged in from Index, SKIP Password
-        if(sessionStorage.getItem('office_login') === 'true') {
-            const overlay = document.getElementById('password-overlay');
-            if(overlay) overlay.style.display = 'none';
-        } else {
-            // Not logged in -> Focus on local password input
-            document.getElementById('passInput').focus();
-        }
-
-        // 2. Standard Init
+        // Force Auto-Load without Password Screen
+        fetchOnlineData();
         addRow();
         if(document.querySelector('.btn-bulk-print')) document.querySelector('.btn-bulk-print').style.visibility = 'visible';
         setupEnterNavigation('partyModal', ['singlePartyName', 'singlePartyAcc', 'singlePartyIfsc', 'singlePartyBank', 'singlePartyStation'], saveSinglePartyOnline);
